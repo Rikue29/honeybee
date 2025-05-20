@@ -9,30 +9,30 @@ import 'package:honeybee/core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Load environment variables
   await dotenv.load(fileName: ".env");
-  
+
   // Initialize Mapbox with access token
   MapboxOptions.setAccessToken(dotenv.env['MAPBOX_ACCESS_TOKEN']!);
-  
+
   // Initialize Supabase
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
-  
+
   // Initialize location service
   final locationService = LocationService();
   await locationService.initialize();
-  
+
   runApp(
     Provider<LocationService>.value(
       value: locationService,
       child: const HoneybeeApp(),
     ),
   );
-  
+
   // Ensure resources are cleaned up when the app is closed
   final appLifecycle = AppLifecycleReactor(locationService);
 }
@@ -40,11 +40,11 @@ void main() async {
 // Helper class to handle app lifecycle events
 class AppLifecycleReactor extends WidgetsBindingObserver {
   final LocationService _locationService;
-  
+
   AppLifecycleReactor(this._locationService) {
     WidgetsBinding.instance.addObserver(this);
   }
-  
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
