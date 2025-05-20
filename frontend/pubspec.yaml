@@ -76,8 +76,8 @@ dev_dependencies:
   flutter_lints: ^3.0.1
   build_runner: ^2.4.6
   mockito: ^5.4.2
-  flutter_launcher_icons: ^0.13.1
-  flutter_native_splash: ^2.3.6
+  # flutter_launcher_icons: ^0.13.1 # Only use for icon generation, then comment/remove to avoid dependency conflicts
+  # flutter_native_splash: ^2.3.6 # Only use for splash generation, then comment/remove to avoid dependency conflicts
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
