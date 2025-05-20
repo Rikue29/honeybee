@@ -14,7 +14,6 @@ class AppTheme {
       primary: _primaryColor,
       secondary: _secondaryColor,
       tertiary: _accentColor,
-      background: _backgroundColor,
       surface: _surfaceColor,
       error: _errorColor,
     ),
@@ -76,7 +75,6 @@ class AppTheme {
       primary: _primaryColor,
       secondary: _secondaryColor,
       tertiary: _accentColor,
-      background: const Color(0xFF1A1A1A),
       surface: const Color(0xFF2D2D2D),
       error: _errorColor,
     ),
@@ -131,4 +129,4 @@ class AppTheme {
     ),
     fontFamily: 'Poppins',
   );
-} 
+}

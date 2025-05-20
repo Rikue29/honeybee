@@ -36,16 +36,18 @@ dependencies:
   
   # UI Components
   cupertino_icons: ^1.0.6
-  flutter_map: ^6.1.0
-  mapbox_gl: ^0.16.0
+  flutter_map: ^6.2.1
   google_maps_flutter: ^2.5.0
   cached_network_image: ^3.3.0
   shimmer: ^3.0.0
+  lottie: ^2.7.0
+
+  # Mapbox
+  mapbox_maps_flutter: ^2.0.0
   
   # Location Services
   location: ^5.0.3
   geolocator: ^10.1.0
-  background_location: ^0.11.0
   
   # Authentication & Backend
   supabase_flutter: ^2.0.0
@@ -94,6 +96,7 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/fonts/
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see
@@ -101,22 +104,3 @@ flutter:
 
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
-
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  fonts:
-    - family: Poppins
-      fonts:
-        - asset: assets/fonts/Poppins-Regular.ttf
-        - asset: assets/fonts/Poppins-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Poppins-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Poppins-Bold.ttf
-          weight: 700
-  #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package

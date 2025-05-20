@@ -1,35 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class LoginScreen extends StatefulWidget {
-  final VoidCallback? onRegisterPressed;
+class RegisterScreen extends StatefulWidget {
+  final VoidCallback? onRegisterSuccess;
+  final VoidCallback? onLoginPressed;
 
-  const LoginScreen({
+  const RegisterScreen({
     super.key,
-    this.onRegisterPressed,
+    this.onRegisterSuccess,
+    this.onLoginPressed,
   });
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
-  bool _obscurePassword = true;
   String? _errorMessage;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _signIn() async {
+  Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_passwordController.text != _confirmPasswordController.text) {
+      setState(() {
+        _errorMessage = 'Passwords do not match';
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -37,10 +48,18 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
+      await Supabase.instance.client.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registration successful! Please check your email to confirm your account.')),
+        );
+        // Optionally navigate to login or home screen
+        widget.onRegisterSuccess?.call();
+      }
     } on AuthException catch (error) {
       setState(() {
         _errorMessage = error.message;
@@ -51,9 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -72,6 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Honeybee',
+                        'Create Account',
                         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                               color: Colors.brown[800],
                               fontWeight: FontWeight.bold,
@@ -114,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Your Gamified Travel Companion',
+                        'Join Honeybee to start your journey',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               color: Colors.brown[600],
                               fontFamily: 'Poppins',
@@ -134,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your email';
                   }
-                  if (!RegExp(r'^[^@]+@[^\.]+\..+$').hasMatch(value)) {
+                  if (!RegExp(r'^[^@]+@[^\\.]+\..+$').hasMatch(value)) {
                     return 'Please enter a valid email';
                   }
                   return null;
@@ -149,9 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixIcon: const Icon(Icons.lock),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility
-                          : Icons.visibility_off,
+                      _obscurePassword ? Icons.visibility : Icons.visibility_off,
                     ),
                     onPressed: () {
                       setState(() {
@@ -163,72 +179,86 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter your password';
+                    return 'Please enter a password';
+                  }
+                  if (value.length < 6) {
+                    return 'Password must be at least 6 characters';
                   }
                   return null;
                 },
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    // TODO: Implement password reset
-                  },
-                  child: const Text('Forgot Password?'),
-                ),
-              ),
-              if (_errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(color: Colors.red),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _signIn,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Text('Sign In'),
-              ),
               const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          const Expanded(child: Divider(thickness: 1, color: Colors.brown)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                            child: Text(
-                              'OR',
-                              style: TextStyle(color: Colors.brown[600]),
-                            ),
-                          ),
-                          const Expanded(child: Divider(thickness: 1, color: Colors.brown)),
-                        ],
+              TextFormField(
+                controller: _confirmPasswordController,
+                obscureText: _obscureConfirmPassword,
+                decoration: InputDecoration(
+                  labelText: 'Confirm Password',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                      });
+                    },
+                  ),
+                  border: const OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please confirm your password';
+                  }
+                  if (value != _passwordController.text) {
+                    return 'Passwords do not match';
+                  }
+                  return null;
+                },
+              ),
+              if (_errorMessage != null) ...{
+                const SizedBox(height: 16),
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              },
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: _isLoading ? null : _register,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.brown[800],
+                          foregroundColor: Colors.white,
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Text('Create Account'),
                       ),
                       const SizedBox(height: 16),
-                      OutlinedButton(
-                        onPressed: _isLoading ? null : widget.onRegisterPressed,
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(color: Colors.brown[600]!),
-                        ),
-                        child: Text(
-                          'Create New Account',
-                          style: TextStyle(color: Colors.brown[800]),
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Already have an account?',
+                            style: TextStyle(color: Colors.brown[600]),
+                          ),
+                          TextButton(
+                            onPressed: widget.onLoginPressed ?? () => Navigator.of(context).pop(),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.brown[800],
+                            ),
+                            child: const Text('Sign In'),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                     ],

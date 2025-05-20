@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:mapbox_gl/mapbox_gl.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'dart:typed_data';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:honeybee/core/services/location_service.dart';
 
@@ -12,7 +14,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _locationService = LocationService();
-  MapboxMapController? _mapController;
+  MapboxMap? _mapController;
   List<Map<String, dynamic>> _quests = [];
   bool _isLoading = true;
   String? _error;
@@ -62,8 +64,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _onMapCreated(MapboxMapController controller) {
-    _mapController = controller;
+  void _onMapCreated(MapboxMap mapboxMap) {
+    _mapController = mapboxMap;
     _updateMapMarkers();
   }
 
@@ -71,25 +73,29 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_mapController == null) return;
 
     // Clear existing markers
-    _mapController!.clearSymbols();
+    // Clear existing markers
+    _mapController?.annotations.createPointAnnotationManager().then((manager) {
+      manager.deleteAll();
+    });
 
     // Add markers for each quest location
     for (final quest in _quests) {
       for (final location in quest['quest_locations']) {
-        _mapController!.addSymbol(
-          SymbolOptions(
-            geometry: LatLng(
-              location['latitude'],
-              location['longitude'],
-            ),
-            iconImage: 'marker-15',
-            iconSize: 2.0,
-            textField: location['name'],
-            textOffset: const Offset(0, 1.5),
-            textColor: '#000000',
-            textSize: 12.0,
-          ),
-        );
+        _mapController!.annotations
+            .createPointAnnotationManager()
+            .then((pointAnnotationManager) async {
+          final ByteData bytes =
+              await rootBundle.load('assets/symbols/custom-icon.png');
+          final Uint8List list = bytes.buffer.asUint8List();
+          pointAnnotationManager.create(PointAnnotationOptions(
+            geometry: Point(
+                coordinates: Position(
+              location['longitude'] as double,
+              location['latitude'] as double,
+            )),
+            image: list,
+          ));
+        });
       }
     }
   }
@@ -117,16 +123,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     // Map View
                     Expanded(
                       flex: 2,
-                      child: MapboxMap(
-                        accessToken: const String.fromEnvironment('MAPBOX_ACCESS_TOKEN'),
-                        onMapCreated: _onMapCreated,
-                        initialCameraPosition: const CameraPosition(
-                          target: LatLng(0, 0), // Will be updated with user location
-                          zoom: 12,
+                      child: MapWidget(
+                        cameraOptions: CameraOptions(
+                          center: Point(coordinates: Position(0.0, 0.0)),
+                          zoom: 2,
+                          bearing: 0,
+                          pitch: 0,
                         ),
-                        styleString: MapboxStyles.MAPBOX_STREETS,
-                        myLocationEnabled: true,
-                        myLocationTrackingMode: MyLocationTrackingMode.Tracking,
+                        onMapCreated: _onMapCreated,
+                        styleUri: 'mapbox://styles/mapbox/streets-v12',
                       ),
                     ),
 
@@ -145,8 +150,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               subtitle: Text(quest['description']),
                               trailing: Text(
                                 '${quest['points']} pts',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      color: Theme.of(context).colorScheme.primary,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
                               ),
                               onTap: () {
@@ -174,4 +183,4 @@ class _HomeScreenState extends State<HomeScreen> {
     _mapController?.dispose();
     super.dispose();
   }
-} 
+}

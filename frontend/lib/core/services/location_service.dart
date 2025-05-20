@@ -1,149 +1,120 @@
-import 'dart:async';
 import 'package:geolocator/geolocator.dart';
-import 'package:background_location/background_location.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:async';
 
 class LocationService {
-  static final LocationService _instance = LocationService._internal();
-  factory LocationService() => _instance;
-  LocationService._internal();
-
-  final _supabase = Supabase.instance.client;
-  StreamSubscription<Position>? _positionStream;
-  StreamSubscription<LocationData>? _backgroundLocationStream;
+  late StreamController<Position> _positionStreamController;
+  Stream<Position> get positionStream => _positionStreamController.stream;
   bool _isTracking = false;
+  bool _isDisposed = false;
 
-  Future<void> initialize() async {
-    // Request location permissions
-    await _requestPermissions();
-    
-    // Start background location service
-    await BackgroundLocation.setAndroidNotification(
-      title: "Honeybee Location Tracking",
-      message: "Tracking your location for quest check-ins",
-      icon: "@mipmap/ic_launcher",
-    );
-    
-    await BackgroundLocation.startLocationService();
+  LocationService() {
+    _initStreamController();
   }
 
-  Future<void> _requestPermissions() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      throw Exception('Location services are disabled.');
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        throw Exception('Location permissions are denied');
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      throw Exception('Location permissions are permanently denied');
-    }
-  }
-
-  Future<void> startTracking() async {
-    if (_isTracking) return;
-    _isTracking = true;
-
-    // Start foreground location updates
-    _positionStream = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10, // meters
-      ),
-    ).listen(_handleLocationUpdate);
-
-    // Start background location updates
-    _backgroundLocationStream = BackgroundLocation.getLocationUpdates(
-      (location) async {
-        await _handleLocationUpdate(Position(
-          latitude: location.latitude!,
-          longitude: location.longitude!,
-          timestamp: DateTime.now(),
-          accuracy: location.accuracy!,
-          altitude: location.altitude!,
-          heading: location.heading!,
-          speed: location.speed!,
-          speedAccuracy: location.speedAccuracy!,
-        ));
+  void _initStreamController() {
+    _positionStreamController = StreamController<Position>.broadcast(
+      onListen: () => _isDisposed = false,
+      onCancel: () {
+        if (!_isDisposed) {
+          _positionStreamController.close();
+        }
       },
     );
   }
 
-  Future<void> stopTracking() async {
-    _isTracking = false;
-    await _positionStream?.cancel();
-    await _backgroundLocationStream?.cancel();
-    await BackgroundLocation.stopLocationService();
+  Future<void> initialize() async {
+    // Initialize location service
+    await Geolocator.requestPermission();
   }
 
-  Future<void> _handleLocationUpdate(Position position) async {
-    try {
-      // Get current user
-      final user = _supabase.auth.currentUser;
-      if (user == null) return;
+  Future<Position?> getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
 
-      // Store location update
-      await _supabase.from('location_updates').insert({
-        'user_id': user.id,
-        'latitude': position.latitude,
-        'longitude': position.longitude,
-        'accuracy': position.accuracy,
-        'timestamp': position.timestamp?.toIso8601String(),
-      });
-
-      // Check for nearby quests
-      await _checkNearbyQuests(position);
-    } catch (e) {
-      print('Error handling location update: $e');
+    // Test if location services are enabled
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return null;
     }
-  }
 
-  Future<void> _checkNearbyQuests(Position position) async {
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) return;
-
-      // Query for nearby active quests
-      final response = await _supabase
-          .from('quests')
-          .select('*, quest_locations(*)')
-          .eq('user_id', user.id)
-          .eq('status', 'active');
-
-      if (response == null) return;
-
-      for (final quest in response) {
-        for (final location in quest['quest_locations']) {
-          final distance = Geolocator.distanceBetween(
-            position.latitude,
-            position.longitude,
-            location['latitude'],
-            location['longitude'],
-          );
-
-          // If within 50 meters of a quest location
-          if (distance <= 50) {
-            await _supabase.from('quest_checkins').insert({
-              'quest_id': quest['id'],
-              'location_id': location['id'],
-              'user_id': user.id,
-              'timestamp': DateTime.now().toIso8601String(),
-            });
-          }
-        }
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return null;
       }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition();
+  }
+
+  Future<bool> checkLocationPermission() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    return permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
+  }
+
+  Timer? _locationTimer;
+
+  Future<void> startTracking() async {
+    if (_isTracking) return;
+
+    if (!await checkLocationPermission()) {
+      throw Exception('Location permission not granted');
+    }
+
+    // Recreate the stream controller if it's closed
+    if (_positionStreamController.isClosed) {
+      _initStreamController();
+    }
+
+    _isTracking = true;
+    try {
+      // Start periodic location updates every 5 seconds
+      _locationTimer =
+          Timer.periodic(const Duration(seconds: 5), (timer) async {
+        try {
+          final position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+          );
+          _positionStreamController.add(position);
+        } catch (e) {
+          print('Error getting location: $e');
+          _isTracking = false;
+          _locationTimer?.cancel();
+          rethrow;
+        }
+      });
     } catch (e) {
-      print('Error checking nearby quests: $e');
+      print('Error in location tracking: $e');
+      _isTracking = false;
+      rethrow;
     }
   }
 
-  Future<void> dispose() async {
-    await stopTracking();
+  void stopTracking() {
+    if (!_isTracking) return;
+
+    _isTracking = false;
+    _locationTimer?.cancel();
+    
+    if (!_positionStreamController.isClosed) {
+      _positionStreamController.close();
+    }
   }
-} 
+  
+  void dispose() {
+    _isDisposed = true;
+    _locationTimer?.cancel();
+    if (!_positionStreamController.isClosed) {
+      _positionStreamController.close();
+    }
+  }
+}
