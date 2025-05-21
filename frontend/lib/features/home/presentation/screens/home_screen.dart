@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:honeybee/core/services/location_service.dart';
+import 'package:honeybee/features/quest/presentation/screens/quest_page.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    MapboxOptions.setAccessToken(dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '');
     _loadQuests();
     _startLocationTracking();
   }
@@ -124,14 +127,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       flex: 2,
                       child: MapWidget(
+                        styleUri: MapboxStyles.MAPBOX_STREETS,
                         cameraOptions: CameraOptions(
-                          center: Point(coordinates: Position(0.0, 0.0)),
-                          zoom: 2,
+                          center: Point(coordinates: Position(103.3894, 3.5057)), // Pekan coordinates
+                          zoom: 12,
                           bearing: 0,
                           pitch: 0,
                         ),
                         onMapCreated: _onMapCreated,
-                        styleUri: 'mapbox://styles/mapbox/streets-v12',
                       ),
                     ),
 
@@ -194,7 +197,22 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {
             _selectedIndex = index;
           });
-          // TODO: Implement navigation to different screens based on index
+          
+          // Handle navigation based on index
+          switch (index) {
+            case 0: // Home
+              // Already on home screen
+              break;
+            case 1: // Quest
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const QuestPage()),
+              );
+              break;
+            case 2: // Explore
+              // TODO: Implement explore screen navigation
+              break;
+          }
         },
       ),
     );
