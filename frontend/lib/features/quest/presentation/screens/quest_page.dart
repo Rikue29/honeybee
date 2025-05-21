@@ -3,6 +3,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../services/gemini_service.dart';
 import 'quest_preview_screen.dart';
+import 'package:honeybee/features/home/presentation/screens/home_screen.dart';
 
 class QuestPage extends StatefulWidget {
   const QuestPage({Key? key}) : super(key: key);
@@ -21,7 +22,9 @@ class _QuestPageState extends State<QuestPage> {
   bool _isQuestCreated = false;
   bool _isGenerating = false;
   bool _showLoadingScreen = false;
+  bool _isMapInitialized = false;
   final _geminiService = GeminiService();
+  bool _isDisposed = false;
 
   final List<String> availableCities = ['Pekan'];
   final List<int> availableDurations = [1, 2, 3, 7];
@@ -45,11 +48,32 @@ class _QuestPageState extends State<QuestPage> {
   @override
   void initState() {
     super.initState();
-    String accessToken = dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '';
-    MapboxOptions.setAccessToken(accessToken);
+    _initializeMap();
+  }
+
+  void _initializeMap() {
+    try {
+      String accessToken = dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '';
+      MapboxOptions.setAccessToken(accessToken);
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _isMapInitialized = true;
+        });
+      }
+    } catch (e) {
+      print('Error initializing map: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    mapboxMap = null;
+    super.dispose();
   }
 
   void _onMapCreated(MapboxMap controller) {
+    if (!mounted || _isDisposed) return;
     setState(() {
       mapboxMap = controller;
     });
@@ -60,17 +84,20 @@ class _QuestPageState extends State<QuestPage> {
     return Scaffold(
       body: Stack(
         children: [
-          MapWidget(
-            key: const ValueKey("mapWidget"),
-            onMapCreated: _onMapCreated,
-            styleUri: "mapbox://styles/mapbox/streets-v12",
-            cameraOptions: CameraOptions(
-              center: Point(coordinates: Position(103.3894, 3.5057)), // Pekan coordinates
-              zoom: 12.0,
-              bearing: 0.0,
-              pitch: 0.0,
+          if (!_isMapInitialized)
+            const Center(child: CircularProgressIndicator())
+          else
+            MapWidget(
+              key: const ValueKey("mapWidget"),
+              onMapCreated: _onMapCreated,
+              styleUri: "mapbox://styles/mapbox/streets-v12",
+              cameraOptions: CameraOptions(
+                center: Point(coordinates: Position(103.3894, 3.5057)), // Pekan coordinates
+                zoom: 12.0,
+                bearing: 0.0,
+                pitch: 0.0,
+              ),
             ),
-          ),
           if (_showLoadingScreen)
             Container(
               color: const Color(0xFFFFF8E1), // Light cream background
@@ -153,7 +180,10 @@ class _QuestPageState extends State<QuestPage> {
         currentIndex: 1, // Quest tab is selected
         onTap: (index) {
           if (index == 0) {
-            Navigator.pop(context); // Go back to home
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              (Route<dynamic> route) => false,
+            );
           } else if (index == 2) {
             // TODO: Navigate to explore screen
           }
@@ -633,13 +663,7 @@ class _QuestPageState extends State<QuestPage> {
 
       if (!mounted) return;
 
-      setState(() {
-        _showLoadingScreen = false;
-        _isQuestCreated = true;
-      });
-
-      // Navigate to preview screen immediately
-      if (!mounted) return;
+      // Navigate to preview screen immediately after getting locations
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -649,6 +673,14 @@ class _QuestPageState extends State<QuestPage> {
           ),
         ),
       );
+
+      // Reset state after navigation
+      if (mounted) {
+        setState(() {
+          _showLoadingScreen = false;
+          _isQuestCreated = false;
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

@@ -98,6 +98,7 @@ class GeminiService {
     - Space activities appropriately throughout the day
     - Include food recommendations matching the cuisine preferences
     - Focus on the selected interests
+    - Only suggest 4 locations per day
     ''';
   }
 
