@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class QuestHighlight {
   final String title;
@@ -211,7 +214,6 @@ class QuestCompletedScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title
                       const Text(
                         'Create Your Journal Video!',
                         style: TextStyle(
@@ -221,8 +223,6 @@ class QuestCompletedScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-
-                      // Description
                       const Text(
                         'Generate and share your journey video on social media or community!',
                         style: TextStyle(
@@ -231,69 +231,11 @@ class QuestCompletedScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Generate Video button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: onGenerateVideo,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFFEA8601),
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Generate Video',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Icon(Icons.auto_awesome, size: 18),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Continue button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: onContinue,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF666666),
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Continue',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Icon(Icons.sentiment_satisfied_alt, size: 18),
-                            ],
-                          ),
-                        ),
+                      // Use the new JourneyVideoSection here
+                      JourneyVideoSection(
+                        journeyId:
+                            areaName, // Replace with actual journey ID if available
+                        onContinue: onContinue,
                       ),
                     ],
                   ),
@@ -366,6 +308,219 @@ class QuestCompletedScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Add this widget for the video generation section
+class JourneyVideoSection extends StatefulWidget {
+  final String journeyId;
+  final VoidCallback onContinue;
+  const JourneyVideoSection(
+      {super.key, required this.journeyId, required this.onContinue});
+
+  @override
+  State<JourneyVideoSection> createState() => _JourneyVideoSectionState();
+}
+
+enum VideoGenState { idle, loading, ready, error }
+
+class _JourneyVideoSectionState extends State<JourneyVideoSection> {
+  VideoGenState _state = VideoGenState.idle;
+  String? _videoUrl;
+  String? _errorMsg;
+  VideoPlayerController? _controller;
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generateVideo() async {
+    setState(() {
+      _state = VideoGenState.loading;
+      _errorMsg = null;
+    });
+    // 1. Call backend to start video generation
+    final response = await http.post(
+      Uri.parse('https://your-backend/api/generate-journey-video'),
+      body: jsonEncode({'journeyId': widget.journeyId}),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode != 200) {
+      setState(() {
+        _state = VideoGenState.error;
+        _errorMsg = 'Failed to start video generation';
+      });
+      return;
+    }
+    // 2. Poll for completion
+    _pollForVideo();
+  }
+
+  Future<void> _pollForVideo() async {
+    const pollInterval = Duration(seconds: 3);
+    while (true) {
+      await Future.delayed(pollInterval);
+      final statusResp = await http.get(
+        Uri.parse(
+            'https://your-backend/api/journey-video-status?journeyId=${widget.journeyId}'),
+      );
+      if (statusResp.statusCode != 200) {
+        setState(() {
+          _state = VideoGenState.error;
+          _errorMsg = 'Error checking video status';
+        });
+        return;
+      }
+      final data = jsonDecode(statusResp.body);
+      if (data['status'] == 'ready') {
+        setState(() {
+          _videoUrl = data['videoUrl'];
+          _state = VideoGenState.ready;
+        });
+        _controller = VideoPlayerController.network(_videoUrl!)
+          ..initialize().then((_) {
+            setState(() {});
+            _controller!.play();
+          });
+        break;
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_state == VideoGenState.loading) {
+      return Center(child: CircularProgressIndicator());
+    }
+    if (_state == VideoGenState.ready &&
+        _controller != null &&
+        _controller!.value.isInitialized) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: _controller!.value.aspectRatio,
+            child: VideoPlayer(_controller!),
+          ),
+          const SizedBox(height: 16),
+          // Share buttons (replace with your actual share logic/UI)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.groups),
+              label: const Text('Share On Community'),
+              onPressed: () {
+                // TODO: Implement share to community
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFFEA8601),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.share),
+              label: const Text('Share On Social Media'),
+              onPressed: () {
+                // TODO: Implement share to social media
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFFEA8601),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: widget.onContinue,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF666666),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Continue',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Icon(Icons.sentiment_satisfied_alt, size: 18),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    if (_state == VideoGenState.error) {
+      return Column(
+        children: [
+          Text(_errorMsg ?? 'An error occurred',
+              style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: _generateVideo,
+            child: const Text('Try Again'),
+          ),
+        ],
+      );
+    }
+    // Idle state: show generate button
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _generateVideo,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFFEA8601),
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Generate Video',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(width: 8),
+            Icon(Icons.auto_awesome, size: 18),
+          ],
+        ),
       ),
     );
   }
