@@ -6,6 +6,9 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'dart:typed_data';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'quest_page.dart';
+import 'package:honeybee/core/services/location_service.dart';
+import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart' as geo;
 
 class QuestPreviewScreen extends StatefulWidget {
   final List<Location> locations;
@@ -26,10 +29,11 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
   MapboxMap? mapboxMap;
   PointAnnotationManager? pointAnnotationManager;
   bool _isSaving = false;
-  Uint8List? _locationMarkerImage;
+  List<Uint8List> _locationMarkerImages = [];
   Uint8List? _userMarkerImage;
   bool _isMapInitialized = false;
   bool _isDisposed = false;
+  geo.Position? _userLocation;
 
   @override
   void initState() {
@@ -37,6 +41,22 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
     _locations = List.from(widget.locations);
     _initializeMap();
     _loadMarkerImages();
+    _getUserLocation();
+  }
+
+  Future<void> _getUserLocation() async {
+    try {
+      final locationService = Provider.of<LocationService>(context, listen: false);
+      final position = await locationService.getCurrentLocation();
+      if (position != null && mounted) {
+        setState(() {
+          _userLocation = position;
+        });
+        _addMarkersToMap();
+      }
+    } catch (e) {
+      print('Error getting user location: $e');
+    }
   }
 
   void _initializeMap() {
@@ -65,12 +85,19 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
   Future<void> _loadMarkerImages() async {
     if (_isDisposed) return;
     
-    final locationMarkerBytes = await rootBundle.load('assets/images/marker.png');
+    // Load numbered markers
+    for (int i = 1; i <= 4; i++) {
+      final markerBytes = await rootBundle.load('assets/images/marker-$i.png');
+      if (!_isDisposed && mounted) {
+        _locationMarkerImages.add(markerBytes.buffer.asUint8List());
+      }
+    }
+    
+    // Load user marker
     final userMarkerBytes = await rootBundle.load('assets/images/marker-here.png');
     
     if (!_isDisposed && mounted) {
       setState(() {
-        _locationMarkerImage = locationMarkerBytes.buffer.asUint8List();
         _userMarkerImage = userMarkerBytes.buffer.asUint8List();
       });
     }
@@ -89,7 +116,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
   }
 
   Future<void> _addMarkersToMap() async {
-    if (mapboxMap == null || _locationMarkerImage == null || 
+    if (mapboxMap == null || _locationMarkerImages.isEmpty || 
         _userMarkerImage == null || _isDisposed) return;
 
     try {
@@ -104,61 +131,76 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
         if (_isDisposed) return;
         
         final location = _locations[i];
+        final markerIndex = i % _locationMarkerImages.length; // Cycle through available markers
         
         // Create marker options
         final options = PointAnnotationOptions(
           geometry: Point(
             coordinates: Position(location.longitude, location.latitude),
           ),
-          textField: '${i + 1}',
-          textSize: 16.0,
-          textColor: Colors.white.value,
-          iconSize: 0.5, // Made smaller
-          textOffset: [0.0, 0.0],
-          image: _locationMarkerImage,
+          iconSize: 0.3, // Smaller icon
+          image: _locationMarkerImages[markerIndex],
         );
 
         // Add marker to map
         await pointAnnotationManager!.create(options);
       }
 
-      // Add user's current location marker
-      if (!_isDisposed) {
+      // Add user's current location marker if available
+      if (_userLocation != null && !_isDisposed) {
         final userMarkerOptions = PointAnnotationOptions(
           geometry: Point(
             coordinates: Position(
-              _locations.first.longitude,
-              _locations.first.latitude,
+              _userLocation!.longitude,
+              _userLocation!.latitude,
             ),
           ),
-          iconSize: 0.5, // Made smaller
+          iconSize: 0.3, // Smaller icon
           image: _userMarkerImage,
         );
         await pointAnnotationManager!.create(userMarkerOptions);
       }
 
-      // Adjust camera to show all markers
+      // Adjust camera to show all points including user location
       if (_locations.isNotEmpty && !_isDisposed) {
-        final minLng = _locations.map((l) => l.longitude).reduce(min);
-        final maxLng = _locations.map((l) => l.longitude).reduce(max);
-        final minLat = _locations.map((l) => l.latitude).reduce(min);
-        final maxLat = _locations.map((l) => l.latitude).reduce(max);
+        List<double> lngs = _locations.map((l) => l.longitude).toList();
+        List<double> lats = _locations.map((l) => l.latitude).toList();
 
-        final cameraBounds = CoordinateBounds(
-          southwest: Point(coordinates: Position(minLng, minLat)),
-          northeast: Point(coordinates: Position(maxLng, maxLat)),
-          infiniteBounds: false,
-        );
+        // Include user location in bounds calculation if available
+        if (_userLocation != null) {
+          lngs.add(_userLocation!.longitude);
+          lats.add(_userLocation!.latitude);
+        }
+
+        final minLng = lngs.reduce(min);
+        final maxLng = lngs.reduce(max);
+        final minLat = lats.reduce(min);
+        final maxLat = lats.reduce(max);
+
+        // Calculate center point
+        final centerLng = (minLng + maxLng) / 2;
+        final centerLat = (minLat + maxLat) / 2;
+
+        // Calculate appropriate zoom level based on bounds
+        final latDiff = (maxLat - minLat).abs();
+        final lngDiff = (maxLng - minLng).abs();
+        final maxDiff = max(latDiff, lngDiff);
+        
+        // Adjust zoom level based on the distance between points
+        final zoom = max(14 - (maxDiff * 10), 11.0); // Minimum zoom of 11
 
         final cameraOptions = CameraOptions(
           center: Point(
-            coordinates: Position(
-              (minLng + maxLng) / 2,
-              (minLat + maxLat) / 2,
-            ),
+            coordinates: Position(centerLng, centerLat),
           ),
-          zoom: 12.0,
-          padding: MbxEdgeInsets(top: 50, left: 50, bottom: 50, right: 50),
+          zoom: zoom,
+          // Add padding to ensure markers aren't too close to edges
+          padding: MbxEdgeInsets(
+            top: 100,
+            left: 50,
+            bottom: 200, // Extra padding for bottom sheet
+            right: 50,
+          ),
         );
 
         await mapboxMap?.setCamera(cameraOptions);

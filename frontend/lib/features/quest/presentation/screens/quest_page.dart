@@ -4,6 +4,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../services/gemini_service.dart';
 import 'quest_preview_screen.dart';
 import 'package:honeybee/features/home/presentation/screens/home_screen.dart';
+import 'package:honeybee/core/services/location_service.dart';
+import 'package:honeybee/core/services/geocoding_service.dart';
+import 'package:provider/provider.dart';
 
 class QuestPage extends StatefulWidget {
   const QuestPage({Key? key}) : super(key: key);
@@ -15,6 +18,8 @@ class QuestPage extends StatefulWidget {
 class _QuestPageState extends State<QuestPage> {
   int _currentStep = 0;
   String? selectedCity;
+  double? selectedLatitude;
+  double? selectedLongitude;
   int selectedDuration = 1;
   List<String> selectedInterests = [];
   List<String> selectedCuisine = [];
@@ -24,7 +29,13 @@ class _QuestPageState extends State<QuestPage> {
   bool _showLoadingScreen = false;
   bool _isMapInitialized = false;
   final _geminiService = GeminiService();
+  final _geocodingService = GeocodingService();
   bool _isDisposed = false;
+  bool _isLoadingLocation = true;
+  bool _isSearching = false;
+  List<City> _searchResults = [];
+  List<City> _nearestCities = [];
+  final _searchController = TextEditingController();
 
   final List<String> availableCities = ['Pekan'];
   final List<int> availableDurations = [1, 2, 3, 7];
@@ -49,6 +60,7 @@ class _QuestPageState extends State<QuestPage> {
   void initState() {
     super.initState();
     _initializeMap();
+    _detectCurrentCity();
   }
 
   void _initializeMap() {
@@ -65,8 +77,56 @@ class _QuestPageState extends State<QuestPage> {
     }
   }
 
+  Future<void> _detectCurrentCity() async {
+    try {
+      final locationService = Provider.of<LocationService>(context, listen: false);
+      final position = await locationService.getCurrentLocation();
+      
+      if (position != null) {
+        final city = await _geocodingService.getCityFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+
+        if (city != null && mounted) {
+          // Get nearest cities
+          final nearestCities = await _geocodingService.getNearestCities(
+            position.latitude,
+            position.longitude,
+          );
+
+          if (mounted) {
+            setState(() {
+              selectedCity = city.name;
+              selectedLatitude = city.latitude;
+              selectedLongitude = city.longitude;
+              _isLoadingLocation = false;
+              _searchController.text = city.fullName;
+              _nearestCities = nearestCities;
+              if (mapboxMap != null) {
+                mapboxMap?.setCamera(
+                  CameraOptions(
+                    center: Point(coordinates: Position(city.longitude, city.latitude)),
+                    zoom: 12.0,
+                  ),
+                );
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('Error detecting city: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingLocation = false);
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _searchController.dispose();
     _isDisposed = true;
     mapboxMap = null;
     super.dispose();
@@ -193,12 +253,52 @@ class _QuestPageState extends State<QuestPage> {
   }
 
   void _updateMapCamera() {
-    mapboxMap?.setCamera(
-      CameraOptions(
-        center: Point(coordinates: Position(103.3894, 3.5057)), // Pekan coordinates
-        zoom: 14.0,
-      ),
-    );
+    if (selectedLatitude != null && selectedLongitude != null) {
+      mapboxMap?.setCamera(
+        CameraOptions(
+          center: Point(coordinates: Position(selectedLongitude!, selectedLatitude!)),
+          zoom: 14.0,
+        ),
+      );
+    }
+  }
+
+  Future<void> _searchCities(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+      return;
+    }
+
+    setState(() => _isSearching = true);
+
+    try {
+      final results = await _geocodingService.searchCities(query);
+      if (mounted) {
+        setState(() {
+          _searchResults = results;
+          _isSearching = false;
+        });
+      }
+    } catch (e) {
+      print('Error searching cities: $e');
+      if (mounted) {
+        setState(() => _isSearching = false);
+      }
+    }
+  }
+
+  void _selectCity(City city) {
+    setState(() {
+      selectedCity = city.name;
+      selectedLatitude = city.latitude;
+      selectedLongitude = city.longitude;
+      _searchResults = [];
+      _searchController.text = city.fullName;
+    });
+    _updateMapCamera();
   }
 
   Widget _buildCurrentStep() {
@@ -257,57 +357,133 @@ class _QuestPageState extends State<QuestPage> {
               ],
             ),
             const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                hintText: 'State/City',
-                prefixIcon: const Icon(Icons.location_on_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+            if (_isLoadingLocation)
+              const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
                 ),
-              ),
-              readOnly: true,
-              onTap: () {
-                setState(() {
-                  selectedCity = 'Pekan';
-                  _updateMapCamera();
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              leading: const Icon(Icons.location_city, size: 50, color: Colors.orange),
-              title: const Text('Pekan'),
-              onTap: () {
-                setState(() {
-                  selectedCity = 'Pekan';
-                  _updateMapCamera();
-                });
-              },
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: selectedCity != null
-                    ? () {
-                        setState(() {
-                          _currentStep++;
-                        });
-                      }
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              )
+            else
+              Column(
+                children: [
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search for a city',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _searchResults = [];
+                                });
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      _searchCities(value);
+                    },
                   ),
-                ),
-                child: const Text(
-                  'Next',
-                  style: TextStyle(color: Colors.white),
-                ),
+                  if (_isSearching)
+                    const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+                        ),
+                      ),
+                    )
+                  else if (_searchResults.isNotEmpty)
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      margin: const EdgeInsets.only(top: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _searchResults.length,
+                        itemBuilder: (context, index) {
+                          final city = _searchResults[index];
+                          return ListTile(
+                            title: Text(city.name),
+                            subtitle: Text(
+                              [city.state, city.country]
+                                  .where((e) => e != null)
+                                  .join(', '),
+                            ),
+                            onTap: () => _selectCity(city),
+                          );
+                        },
+                      ),
+                    )
+                  else if (_nearestCities.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Cities near you',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ...List.generate(_nearestCities.length, (index) {
+                            final city = _nearestCities[index];
+                            return ListTile(
+                              leading: const Icon(Icons.location_on, color: Colors.orange),
+                              title: Text(city.name),
+                              subtitle: Text(
+                                [
+                                  if (city.distance != null)
+                                    '${city.distance!.toStringAsFixed(1)} km away',
+                                  city.state,
+                                  city.country,
+                                ].where((e) => e != null).join(' • '),
+                              ),
+                              onTap: () => _selectCity(city),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: selectedCity != null
+                          ? () {
+                              setState(() {
+                                _currentStep++;
+                              });
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Next',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
           ],
         ),
       ),

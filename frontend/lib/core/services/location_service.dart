@@ -6,6 +6,9 @@ class LocationService {
   Stream<Position> get positionStream => _positionStreamController.stream;
   bool _isTracking = false;
   bool _isDisposed = false;
+  int _errorCount = 0;
+  static const int _maxErrorRetries = 3;
+  static const Duration _retryDelay = Duration(seconds: 2);
 
   LocationService() {
     _initStreamController();
@@ -49,7 +52,12 @@ class LocationService {
       return null;
     }
 
-    return await Geolocator.getCurrentPosition();
+    try {
+      return await Geolocator.getCurrentPosition();
+    } catch (e) {
+      print('Error getting current location: $e');
+      return null;
+    }
   }
 
   Future<bool> checkLocationPermission() async {
@@ -62,6 +70,17 @@ class LocationService {
   }
 
   Timer? _locationTimer;
+
+  Future<void> _handleLocationError() async {
+    _errorCount++;
+    if (_errorCount >= _maxErrorRetries) {
+      stopTracking();
+      // Attempt to restart tracking after a delay
+      await Future.delayed(_retryDelay);
+      _errorCount = 0;
+      await startTracking();
+    }
+  }
 
   Future<void> startTracking() async {
     if (_isTracking) return;
@@ -76,6 +95,8 @@ class LocationService {
     }
 
     _isTracking = true;
+    _errorCount = 0;
+    
     try {
       // Start periodic location updates every 5 seconds
       _locationTimer =
@@ -84,18 +105,19 @@ class LocationService {
           final position = await Geolocator.getCurrentPosition(
             desiredAccuracy: LocationAccuracy.high,
           );
-          _positionStreamController.add(position);
+          if (!_positionStreamController.isClosed && _isTracking) {
+            _positionStreamController.add(position);
+            _errorCount = 0; // Reset error count on successful update
+          }
         } catch (e) {
           print('Error getting location: $e');
-          _isTracking = false;
-          _locationTimer?.cancel();
-          rethrow;
+          await _handleLocationError();
         }
       });
     } catch (e) {
       print('Error in location tracking: $e');
       _isTracking = false;
-      rethrow;
+      await _handleLocationError();
     }
   }
 
@@ -104,6 +126,7 @@ class LocationService {
 
     _isTracking = false;
     _locationTimer?.cancel();
+    _errorCount = 0;
     
     if (!_positionStreamController.isClosed) {
       _positionStreamController.close();
@@ -113,6 +136,7 @@ class LocationService {
   void dispose() {
     _isDisposed = true;
     _locationTimer?.cancel();
+    _errorCount = 0;
     if (!_positionStreamController.isClosed) {
       _positionStreamController.close();
     }
