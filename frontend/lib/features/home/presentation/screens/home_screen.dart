@@ -18,6 +18,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _quests = [];
   bool _isLoading = true;
   String? _error;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -72,7 +73,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void _updateMapMarkers() {
     if (_mapController == null) return;
 
-    // Clear existing markers
     // Clear existing markers
     _mapController?.annotations.createPointAnnotationManager().then((manager) {
       manager.deleteAll();
@@ -173,6 +173,29 @@ class _HomeScreenState extends State<HomeScreen> {
           // TODO: Navigate to new quest creation
         },
         child: const Icon(Icons.add),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.description),
+            label: 'Quest',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.explore),
+            label: 'Explore',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+          // TODO: Implement navigation to different screens based on index
+        },
       ),
     );
   }
