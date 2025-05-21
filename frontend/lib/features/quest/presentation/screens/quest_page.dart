@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../../services/gemini_service.dart';
+import 'quest_preview_screen.dart';
 
 class QuestPage extends StatefulWidget {
   const QuestPage({Key? key}) : super(key: key);
@@ -17,6 +19,9 @@ class _QuestPageState extends State<QuestPage> {
   List<String> selectedCuisine = [];
   MapboxMap? mapboxMap;
   bool _isQuestCreated = false;
+  bool _isGenerating = false;
+  bool _showLoadingScreen = false;
+  final _geminiService = GeminiService();
 
   final List<String> availableCities = ['Pekan'];
   final List<int> availableDurations = [1, 2, 3, 7];
@@ -66,10 +71,71 @@ class _QuestPageState extends State<QuestPage> {
               pitch: 0.0,
             ),
           ),
-          _buildCurrentStep(),
+          if (_showLoadingScreen)
+            Container(
+              color: const Color(0xFFFFF8E1), // Light cream background
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset('assets/images/bee_quest.png', width: 60, height: 60),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Creating Your Quest',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.brown,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      width: 200,
+                      child: const LinearProgressIndicator(
+                        backgroundColor: Color(0xFFFFE0B2), // Light orange color
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+                        minHeight: 8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (_isQuestCreated)
+            Container(
+              color: const Color(0xFFFFF8E1), // Light cream background
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset('assets/images/bee_quest.png', width: 60, height: 60),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Quest Created!',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.brown,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Get ready to\nexplore Pekan',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.brown,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            _buildCurrentStep(),
         ],
       ),
-      bottomNavigationBar: _isQuestCreated ? null : BottomNavigationBar(
+      bottomNavigationBar: (!_showLoadingScreen && !_isQuestCreated) ? BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -92,7 +158,7 @@ class _QuestPageState extends State<QuestPage> {
             // TODO: Navigate to explore screen
           }
         },
-      ),
+      ) : null,
     );
   }
 
@@ -551,6 +617,53 @@ class _QuestPageState extends State<QuestPage> {
     );
   }
 
+  Future<void> _generateQuest() async {
+    setState(() {
+      _isGenerating = true;
+      _showLoadingScreen = true;
+    });
+
+    try {
+      final locations = await _geminiService.generateItinerary(
+        city: selectedCity!,
+        duration: selectedDuration,
+        interests: selectedInterests,
+        cuisinePreferences: selectedCuisine,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _showLoadingScreen = false;
+        _isQuestCreated = true;
+      });
+
+      // Navigate to preview screen immediately
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => QuestPreviewScreen(
+            locations: locations,
+            city: selectedCity!,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _showLoadingScreen = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate quest: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+      }
+    }
+  }
+
   Widget _buildQuestOverview() {
     return Positioned(
       bottom: 0,
@@ -631,19 +744,23 @@ class _QuestPageState extends State<QuestPage> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _isQuestCreated = true;
-                      });
-                      // TODO: Generate itinerary using Gemini
-                    },
+                    onPressed: _isGenerating ? null : _generateQuest,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
                     ),
-                    child: const Text(
-                      'Create Quest',
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    child: _isGenerating
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Create Quest',
+                            style: TextStyle(color: Colors.white),
+                          ),
                   ),
                 ),
               ],
