@@ -9,16 +9,23 @@ import 'quest_page.dart';
 import 'package:honeybee/core/services/location_service.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart' as geo;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'quest_start_screen.dart';
 
 class QuestPreviewScreen extends StatefulWidget {
   final List<Location> locations;
   final String city;
 
-  const QuestPreviewScreen({
+  QuestPreviewScreen({
     Key? key,
     required this.locations,
     required this.city,
-  }) : super(key: key);
+  }) : super(key: key) {
+    assert(locations.length == 4, 'A quest must have exactly 4 locations');
+  }
 
   @override
   State<QuestPreviewScreen> createState() => _QuestPreviewScreenState();
@@ -34,11 +41,14 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
   bool _isMapInitialized = false;
   bool _isDisposed = false;
   geo.Position? _userLocation;
+  LineLayer? _routeLayer;
+  bool _showBeeHelper = false;
+  Timer? _locationCheckTimer;
 
   @override
   void initState() {
     super.initState();
-    _locations = List.from(widget.locations);
+    _locations = List.from(widget.locations.take(4));
     _initializeMap();
     _loadMarkerImages();
     _getUserLocation();
@@ -79,6 +89,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
     pointAnnotationManager?.deleteAll();
     pointAnnotationManager = null;
     mapboxMap = null;
+    _locationCheckTimer?.cancel();
     super.dispose();
   }
 
@@ -211,23 +222,162 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
   }
 
   void _removeLocation(int index) {
+    if (_locations.length <= 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A quest must have exactly 4 locations')),
+      );
+      return;
+    }
     setState(() {
       _locations.removeAt(index);
       _addMarkersToMap();
     });
   }
 
-  Future<void> _saveQuest() async {
+  Future<void> _startQuest() async {
+    if (_locations.length != 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A quest must have exactly 4 locations')),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     try {
-      // TODO: Implement actual save to database
-      await Future.delayed(Duration(seconds: 2)); // Simulate network delay
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
       
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+      
+      // Create the quest
+      final questResponse = await supabase
+          .from('quests')
+          .insert({
+            'user_id': user.id,
+            'city': widget.city,
+            'status': 'active',
+            'started_at': DateTime.now().toIso8601String(),
+            'title': 'Your Day in ${widget.city}',
+            'description': 'A personalized quest through ${widget.city}',
+            'total_points': 400,
+          })
+          .select()
+          .single();
+
+      // Prepare all locations data
+      final locationsData = _locations.asMap().entries.map((entry) {
+        final index = entry.key;
+        final location = entry.value;
+        return {
+          'quest_id': questResponse['id'],
+          'name': location.name,
+          'description': location.description,
+          'latitude': location.latitude,
+          'longitude': location.longitude,
+          'time_slot': location.timeSlot,
+          'sequence_number': index + 1,
+          'points': 100,
+        };
+      }).toList();
+
+      // Insert all locations at once
+      await supabase
+          .from('quest_locations')
+          .insert(locationsData);
+
       if (!mounted) return;
-      Navigator.pop(context); // Return to home screen
+
+      // Navigate to QuestStartScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => QuestStartScreen(
+            locations: _locations,
+            city: widget.city,
+            questId: questResponse['id'],
+          ),
+        ),
+      );
+      
     } catch (e) {
       if (!mounted) return;
+      print('Error starting quest: $e'); // Debug log
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to start quest: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _saveQuest() async {
+    if (_locations.length != 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A quest must have exactly 4 locations')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+      
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+      
+      // Create the quest
+      final questResponse = await supabase
+          .from('quests')
+          .insert({
+            'user_id': user.id,
+            'city': widget.city,
+            'status': 'pending',
+            'title': 'Your Day in ${widget.city}',
+            'description': 'A personalized quest through ${widget.city}',
+            'total_points': 400,
+          })
+          .select()
+          .single();
+
+      // Prepare all locations data
+      final locationsData = _locations.asMap().entries.map((entry) {
+        final index = entry.key;
+        final location = entry.value;
+        return {
+          'quest_id': questResponse['id'],
+          'name': location.name,
+          'description': location.description,
+          'latitude': location.latitude,
+          'longitude': location.longitude,
+          'time_slot': location.timeSlot,
+          'sequence_number': index + 1,
+          'points': 100,
+        };
+      }).toList();
+
+      // Insert all locations at once
+      await supabase
+          .from('quest_locations')
+          .insert(locationsData);
+
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Quest saved successfully!')),
+      );
+      
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      print('Error saving quest: $e'); // Debug log
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to save quest: $e')),
       );
@@ -235,6 +385,250 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
       if (mounted) {
         setState(() => _isSaving = false);
       }
+    }
+  }
+
+  void _showRouteAnimation() async {
+    if (_locations.isEmpty || mapboxMap == null) return;
+
+    // Create coordinates for the route
+    final coordinates = _locations.map((loc) => 
+      Position(loc.longitude, loc.latitude)
+    ).toList();
+
+    // Create a GeoJSON feature for the route
+    final routeGeoJson = {
+      'type': 'Feature',
+      'geometry': {
+        'type': 'LineString',
+        'coordinates': coordinates.map((pos) => [pos.lng, pos.lat]).toList(),
+      },
+      'properties': {'name': 'route'},
+    };
+
+    // Create a source for the route
+    final sourceId = 'route-source';
+    await mapboxMap!.style.addSource(GeoJsonSource(
+      id: sourceId,
+      data: jsonEncode(routeGeoJson),
+    ));
+
+    // Create a line layer for the route with animation
+    final layerId = 'route-layer';
+    _routeLayer = LineLayer(
+      id: layerId,
+      sourceId: sourceId,
+      lineColor: Colors.orange.value,
+      lineWidth: 3,
+    );
+
+    await mapboxMap!.style.addLayer(_routeLayer!);
+
+    // Animate the route drawing
+    double progress = 0;
+    Timer.periodic(Duration(milliseconds: 50), (timer) {
+      progress += 0.02;
+      if (progress >= 1) {
+        timer.cancel();
+        _showBeeHelperDialog();
+      } else {
+        _routeLayer!.lineTrimOffset = [0, progress];
+      }
+    });
+
+    // Adjust camera to show the entire route
+    await _fitRouteInView(coordinates);
+  }
+
+  Future<void> _fitRouteInView(List<Position> coordinates) async {
+    if (coordinates.isEmpty) return;
+
+    double minLat = coordinates.map((c) => c.lat).reduce(min).toDouble();
+    double maxLat = coordinates.map((c) => c.lat).reduce(max).toDouble();
+    double minLng = coordinates.map((c) => c.lng).reduce(min).toDouble();
+    double maxLng = coordinates.map((c) => c.lng).reduce(max).toDouble();
+
+    final bounds = CoordinateBounds(
+      southwest: Point(coordinates: Position(minLng, minLat)),
+      northeast: Point(coordinates: Position(maxLng, maxLat)),
+      infiniteBounds: false,
+    );
+
+    await mapboxMap?.setCamera(
+      CameraOptions(
+        center: Point(
+          coordinates: Position(
+            (minLng + maxLng) / 2,
+            (minLat + maxLat) / 2,
+          ),
+        ),
+        zoom: 12,
+        padding: MbxEdgeInsets(
+          top: 50,
+          left: 50,
+          bottom: 50,
+          right: 50,
+        ),
+      ),
+    );
+  }
+
+  void _showBeeHelperDialog() {
+    if (!mounted) return;
+    
+    setState(() => _showBeeHelper = true);
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/bee-helper.png',
+              height: 100,
+              width: 100,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Are you ready to head to the first spot?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => _openGoogleMapsNavigation(_locations.first),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.navigation, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text(
+                    'Navigate using Google Maps',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Start checking if user has reached the location
+    _startLocationCheck();
+  }
+
+  void _startLocationCheck() {
+    final locationService = Provider.of<LocationService>(context, listen: false);
+    _locationCheckTimer = Timer.periodic(Duration(seconds: 10), (timer) async {
+      if (_locations.isEmpty) {
+        timer.cancel();
+        return;
+      }
+
+      final firstLocation = _locations.first;
+      final currentLocation = await locationService.getCurrentLocation();
+      
+      if (currentLocation == null) return;
+
+      final distance = geo.Geolocator.distanceBetween(
+        currentLocation.latitude,
+        currentLocation.longitude,
+        firstLocation.latitude,
+        firstLocation.longitude,
+      );
+
+      // If within 50 meters of the location
+      if (distance <= 50) {
+        timer.cancel();
+        _showArrivalConfirmation();
+      }
+    });
+  }
+
+  void _showArrivalConfirmation() {
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/bee-helper.png',
+              height: 100,
+              width: 100,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'I see you have arrived!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Not yet'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // TODO: Start the game
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                  ),
+                  child: Text(
+                    'Yes',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openGoogleMapsNavigation(Location location) async {
+    final url = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=${location.latitude},${location.longitude}',
+    );
+    
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open Google Maps')),
+      );
     }
   }
 
@@ -378,7 +772,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: _isSaving ? null : _saveQuest,
+                  onPressed: _isSaving ? null : _startQuest,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     padding: EdgeInsets.symmetric(vertical: 16),

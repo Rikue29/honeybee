@@ -21,6 +21,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   String? _error;
   int _selectedIndex = 0;
+  bool _isDisposed = false;
+  PointAnnotationManager? _pointAnnotationManager;
 
   @override
   void initState() {
@@ -68,38 +70,46 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _onMapCreated(MapboxMap mapboxMap) {
+  void _onMapCreated(MapboxMap mapboxMap) async {
+    if (_isDisposed) return;
     _mapController = mapboxMap;
+    _pointAnnotationManager = await mapboxMap.annotations.createPointAnnotationManager();
     _updateMapMarkers();
   }
 
-  void _updateMapMarkers() {
-    if (_mapController == null) return;
+  void _updateMapMarkers() async {
+    if (_mapController == null || _isDisposed) return;
 
-    // Clear existing markers
-    _mapController?.annotations.createPointAnnotationManager().then((manager) {
-      manager.deleteAll();
-    });
+    try {
+      // Clear existing markers
+      await _pointAnnotationManager?.deleteAll();
 
-    // Add markers for each quest location
-    for (final quest in _quests) {
-      for (final location in quest['quest_locations']) {
-        _mapController!.annotations
-            .createPointAnnotationManager()
-            .then((pointAnnotationManager) async {
-          final ByteData bytes =
-              await rootBundle.load('assets/symbols/custom-icon.png');
+      // Add markers for each quest location
+      for (final quest in _quests) {
+        if (_isDisposed) return; // Check if disposed before continuing
+        
+        for (final location in quest['quest_locations']) {
+          if (_isDisposed) return; // Check if disposed before continuing
+          
+          final ByteData bytes = await rootBundle.load('assets/symbols/custom-icon.png');
           final Uint8List list = bytes.buffer.asUint8List();
-          pointAnnotationManager.create(PointAnnotationOptions(
-            geometry: Point(
+          
+          if (!_isDisposed && _pointAnnotationManager != null) {
+            await _pointAnnotationManager!.create(PointAnnotationOptions(
+              geometry: Point(
                 coordinates: Position(
-              location['longitude'] as double,
-              location['latitude'] as double,
-            )),
-            image: list,
-          ));
-        });
+                  location['longitude'] as double,
+                  location['latitude'] as double,
+                ),
+              ),
+              image: list,
+            ));
+          }
+        }
       }
+    } catch (e) {
+      if (!mounted) return;
+      print('Error updating map markers: $e');
     }
   }
 
@@ -220,8 +230,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _isDisposed = true;
+    _pointAnnotationManager?.deleteAll();
+    _pointAnnotationManager = null;
     _locationService.stopTracking();
     _mapController?.dispose();
+    _mapController = null;
     super.dispose();
   }
 }
