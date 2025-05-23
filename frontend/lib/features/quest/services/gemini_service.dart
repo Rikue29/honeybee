@@ -23,13 +23,13 @@ class Location {
 
   factory Location.fromJson(Map<String, dynamic> json) {
     return Location(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      description: json['description'] as String,
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
-      timeSlot: json['time_slot'] as String,
-      category: json['category'] as String,
+      id: json['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      name: json['name'],
+      description: json['description'],
+      latitude: json['latitude'],
+      longitude: json['longitude'],
+      timeSlot: json['timeSlot'],
+      category: json['category'],
     );
   }
 
@@ -40,7 +40,7 @@ class Location {
       'description': description,
       'latitude': latitude,
       'longitude': longitude,
-      'time_slot': timeSlot,
+      'timeSlot': timeSlot,
       'category': category,
     };
   }
