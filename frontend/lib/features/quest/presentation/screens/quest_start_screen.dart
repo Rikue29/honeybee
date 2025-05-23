@@ -30,6 +30,7 @@ class QuestStartScreen extends StatefulWidget {
 }
 
 class _QuestStartScreenState extends State<QuestStartScreen> {
+  late List<Location> _locations;
   MapboxMap? mapboxMap;
   PointAnnotationManager? pointAnnotationManager;
   List<Uint8List> _locationMarkerImages = [];
@@ -38,16 +39,15 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
   bool _isDisposed = false;
   geo.Position? _userLocation;
   LineLayer? _routeLayer;
-  Timer? _locationCheckTimer;
   int _currentLocationIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    _locations = widget.locations;
     _initializeMap();
     _loadMarkerImages();
-    _getUserLocation();
-    _startLocationCheck();
+    _startArrivalSimulation();
   }
 
   void _initializeMap() {
@@ -77,25 +77,11 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
     
     // Load user marker
     final userMarkerBytes = await rootBundle.load('assets/images/marker-here.png');
+    
     if (!_isDisposed && mounted) {
       setState(() {
         _userMarkerImage = userMarkerBytes.buffer.asUint8List();
       });
-    }
-  }
-
-  Future<void> _getUserLocation() async {
-    try {
-      final locationService = Provider.of<LocationService>(context, listen: false);
-      final position = await locationService.getCurrentLocation();
-      if (position != null && mounted) {
-        setState(() {
-          _userLocation = position;
-        });
-        _addMarkersToMap();
-      }
-    } catch (e) {
-      print('Error getting user location: $e');
     }
   }
 
@@ -106,23 +92,26 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
       mapboxMap = controller;
     });
 
+    // Initialize the point annotation manager
     pointAnnotationManager = await controller.annotations.createPointAnnotationManager();
     _addMarkersToMap();
-    _showRouteAnimation();
   }
 
   Future<void> _addMarkersToMap() async {
-    if (mapboxMap == null || _locationMarkerImages.isEmpty || 
-        _userMarkerImage == null || _isDisposed) return;
+    if (mapboxMap == null || _locationMarkerImages.isEmpty || _isDisposed) return;
 
     try {
-      await pointAnnotationManager?.deleteAll();
+      // Create point annotation manager if it doesn't exist
+      pointAnnotationManager ??= await mapboxMap!.annotations.createPointAnnotationManager();
+      
+      // Clear existing annotations
+      await pointAnnotationManager!.deleteAll();
 
       // Add markers for each location
-      for (var i = 0; i < widget.locations.length; i++) {
+      for (var i = 0; i < _locations.length; i++) {
         if (_isDisposed) return;
         
-        final location = widget.locations[i];
+        final location = _locations[i];
         final markerIndex = i % _locationMarkerImages.length;
         
         final options = PointAnnotationOptions(
@@ -136,230 +125,160 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
         await pointAnnotationManager!.create(options);
       }
 
-      // Add user's current location marker
-      if (_userLocation != null && !_isDisposed) {
-        final userMarkerOptions = PointAnnotationOptions(
-          geometry: Point(
-            coordinates: Position(
-              _userLocation!.longitude,
-              _userLocation!.latitude,
-            ),
+      // Adjust camera to show current location
+      if (!_isDisposed) {
+        final currentLocation = _locations[_currentLocationIndex];
+        final cameraOptions = CameraOptions(
+          center: Point(
+            coordinates: Position(currentLocation.longitude, currentLocation.latitude),
           ),
-          iconSize: 0.3,
-          image: _userMarkerImage,
+          zoom: 14.0,
         );
-        await pointAnnotationManager!.create(userMarkerOptions);
+        await mapboxMap?.setCamera(cameraOptions);
       }
-
-      _updateCameraPosition();
     } catch (e) {
       print('Error adding markers: $e');
     }
   }
 
-  void _updateCameraPosition() {
-    if (widget.locations.isEmpty || !mounted) return;
-
-    List<double> lngs = widget.locations.map((l) => l.longitude).toList();
-    List<double> lats = widget.locations.map((l) => l.latitude).toList();
-
-    if (_userLocation != null) {
-      lngs.add(_userLocation!.longitude);
-      lats.add(_userLocation!.latitude);
-    }
-
-    final minLng = lngs.reduce((a, b) => a < b ? a : b);
-    final maxLng = lngs.reduce((a, b) => a > b ? a : b);
-    final minLat = lats.reduce((a, b) => a < b ? a : b);
-    final maxLat = lats.reduce((a, b) => a > b ? a : b);
-
-    final centerLng = (minLng + maxLng) / 2;
-    final centerLat = (minLat + maxLat) / 2;
-
-    final latDiff = (maxLat - minLat).abs();
-    final lngDiff = (maxLng - minLng).abs();
-    final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
-    
-    final zoom = (14 - (maxDiff * 10)).clamp(11.0, 15.0);
-
-    mapboxMap?.setCamera(
-      CameraOptions(
-        center: Point(coordinates: Position(centerLng, centerLat)),
-        zoom: zoom,
-        padding: MbxEdgeInsets(top: 100, left: 50, bottom: 100, right: 50),
-      ),
-    );
-  }
-
-  void _showRouteAnimation() async {
-    if (widget.locations.isEmpty || mapboxMap == null) return;
-
-    final coordinates = widget.locations.map((loc) => 
-      Position(loc.longitude, loc.latitude)
-    ).toList();
-
-    // Create a properly formatted GeoJSON object
-    final routeGeoJson = {
-      "type": "FeatureCollection",
-      "features": [
-        {
-          "type": "Feature",
-          "properties": {},
-          "geometry": {
-            "type": "LineString",
-            "coordinates": coordinates.map((pos) => [pos.lng, pos.lat]).toList(),
-          }
-        }
-      ]
-    };
-
-    final sourceId = 'route-source';
-    try {
-      await mapboxMap!.style.addSource(GeoJsonSource(
-        id: sourceId,
-        data: jsonEncode(routeGeoJson),
-      ));
-
-      _routeLayer = LineLayer(
-        id: 'route-layer',
-        sourceId: sourceId,
-        lineColor: Colors.orange.value,
-        lineWidth: 3,
-      );
-
-      await mapboxMap!.style.addLayer(_routeLayer!);
-    } catch (e) {
-      print('Error showing route animation: $e');
-    }
-  }
-
-  void _startLocationCheck() {
-    final locationService = Provider.of<LocationService>(context, listen: false);
-    _locationCheckTimer = Timer.periodic(Duration(seconds: 10), (timer) async {
-      if (_currentLocationIndex >= widget.locations.length) {
-        timer.cancel();
-        return;
-      }
-
-      final targetLocation = widget.locations[_currentLocationIndex];
-      final currentLocation = await locationService.getCurrentLocation();
-      
-      if (currentLocation == null) return;
-
-      setState(() {
-        _userLocation = currentLocation;
-      });
-      _addMarkersToMap();
-
-      final distance = geo.Geolocator.distanceBetween(
-        currentLocation.latitude,
-        currentLocation.longitude,
-        targetLocation.latitude,
-        targetLocation.longitude,
-      );
-
-      if (distance <= 50) {
+  void _startArrivalSimulation() {
+    print('Starting arrival simulation...'); // Debug log
+    Future.delayed(Duration(seconds: 6), () {
+      print('Simulated arrival, showing confirmation...'); // Debug log
+      if (!mounted) return;
+      setState(() {}); // Ensure the widget is in a clean state
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         _showArrivalConfirmation();
-      }
+      });
     });
   }
 
   void _showArrivalConfirmation() {
     if (!mounted) return;
     
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/images/bee-helper.png',
-              height: 100,
-              width: 100,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'You have arrived at ${widget.locations[_currentLocationIndex].name}!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+      builder: (BuildContext dialogContext) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                'assets/images/bee_quest.png',
+                height: 100,
+                width: 100,
               ),
-            ),
-            SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Not yet'),
+              SizedBox(height: 16),
+              Text(
+                'You have arrived at ${_locations[_currentLocationIndex].name}!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    
-                    try {
-                      // Get the quiz mission for this location
-                      final missions = await Supabase.instance.client
-                          .from('missions')
-                          .select()
-                          .eq('location_id', widget.locations[_currentLocationIndex].id)
-                          .eq('mission_type', 'quiz')
-                          .limit(1)
-                          .single();
+              ),
+              SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: Text('Not yet'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(dialogContext);
+                      
+                      try {
+                        final supabase = Supabase.instance.client;
+                        final user = supabase.auth.currentUser;
+                        if (user == null) throw Exception('User not authenticated');
+                        
+                        // Get the location mission template
+                        final locationMission = await supabase
+                            .from('location_missions')
+                            .select()
+                            .eq('location_name', _locations[_currentLocationIndex].name)
+                            .single();
 
-                      if (!mounted) return;
-
-                      // Start the quiz
-                      final score = await Navigator.push<int>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => QuizScreen(
-                            questId: widget.questId,
-                            locationId: widget.locations[_currentLocationIndex].id,
-                            missionId: missions['id'],
-                            locationName: widget.locations[_currentLocationIndex].name,
-                          ),
-                        ),
-                      );
-
-                      if (score != null && mounted) {
-                        setState(() {
-                          _currentLocationIndex++;
+                        // Use a transaction to handle mission and progress
+                        final response = await supabase.rpc('handle_mission_start', params: {
+                          'p_location_id': _locations[_currentLocationIndex].id,
+                          'p_mission_type': locationMission['mission_type'],
+                          'p_title': locationMission['title'],
+                          'p_description': locationMission['description'],
+                          'p_points': locationMission['points'],
+                          'p_user_id': user.id
                         });
 
-                        if (_currentLocationIndex < widget.locations.length) {
-                          _showNavigateToNextPrompt();
-                        } else {
-                          _showQuestCompleteDialog();
+                        if (response == null) {
+                          throw Exception('Failed to start mission');
                         }
+
+                        final missionId = response['mission_id'];
+                        
+                        if (!mounted) return;
+
+                        // Start the quiz
+                        final score = await Navigator.push<int>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => QuizScreen(
+                              questId: widget.questId,
+                              locationId: _locations[_currentLocationIndex].id,
+                              missionId: missionId,
+                              locationName: _locations[_currentLocationIndex].name,
+                            ),
+                          ),
+                        );
+
+                        if (score != null && mounted) {
+                          setState(() {
+                            _currentLocationIndex++;
+                          });
+
+                          if (_currentLocationIndex < _locations.length) {
+                            _showNavigateToNextPrompt();
+                          } else {
+                            _showQuestCompleteDialog();
+                          }
+                        }
+                      } catch (e) {
+                        print('Error starting quiz: $e'); // Debug log
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to start quiz: $e'),
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
                       }
-                    } catch (e) {
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Failed to start quiz: $e')),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                    ),
+                    child: Text(
+                      'Start Quiz',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
-                  child: Text(
-                    'Start Quiz',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-    );
+    ).then((_) {
+      // Handle any cleanup if needed after dialog is dismissed
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   void _showNavigateToNextPrompt() {
@@ -376,7 +295,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset(
-              'assets/images/bee-helper.png',
+              'assets/images/bee_quest.png',
               height: 100,
               width: 100,
             ),
@@ -393,7 +312,8 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                _openGoogleMapsNavigation(widget.locations[_currentLocationIndex]);
+                _openGoogleMapsNavigation(_locations[_currentLocationIndex]);
+                _startArrivalSimulation(); // Start the simulation for the next location
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
@@ -434,7 +354,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset(
-              'assets/images/bee-helper.png',
+              'assets/images/bee_quest.png',
               height: 100,
               width: 100,
             ),
@@ -496,7 +416,6 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
   @override
   void dispose() {
     _isDisposed = true;
-    _locationCheckTimer?.cancel();
     pointAnnotationManager?.deleteAll();
     pointAnnotationManager = null;
     mapboxMap = null;
@@ -522,11 +441,11 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
               cameraOptions: CameraOptions(
                 center: Point(
                   coordinates: Position(
-                    widget.locations.first.longitude,
-                    widget.locations.first.latitude,
+                    _locations[_currentLocationIndex].longitude,
+                    _locations[_currentLocationIndex].latitude,
                   ),
                 ),
-                zoom: 13.0,
+                zoom: 14.0,
               ),
             ),
           
@@ -553,7 +472,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                   Icon(Icons.location_on, color: Colors.orange),
                   SizedBox(width: 8),
                   Text(
-                    'Location ${_currentLocationIndex + 1} of ${widget.locations.length}',
+                    'Location ${_currentLocationIndex + 1} of ${_locations.length}',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
@@ -562,37 +481,10 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
               ),
             ),
           ),
-
-          // Debug controls
-          Positioned(
-            top: 16,
-            right: 16,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: IconButton(
-                icon: Icon(Icons.bug_report, color: Colors.orange),
-                onPressed: () {
-                  // Simulate arrival at current location
-                  _showArrivalConfirmation();
-                },
-                tooltip: 'Debug: Simulate Arrival',
-              ),
-            ),
-          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openGoogleMapsNavigation(widget.locations[_currentLocationIndex]),
+        onPressed: () => _openGoogleMapsNavigation(_locations[_currentLocationIndex]),
         backgroundColor: Colors.orange,
         icon: Icon(Icons.navigation, color: Colors.white),
         label: Text('Navigate', style: TextStyle(color: Colors.white)),

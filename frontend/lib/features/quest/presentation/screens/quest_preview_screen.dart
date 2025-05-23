@@ -14,10 +14,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'quest_start_screen.dart';
+import 'quiz_screen.dart';
 
 class QuestPreviewScreen extends StatefulWidget {
   final List<Location> locations;
   final String city;
+  String? questId;
 
   QuestPreviewScreen({
     Key? key,
@@ -42,8 +44,9 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
   bool _isDisposed = false;
   geo.Position? _userLocation;
   LineLayer? _routeLayer;
-  bool _showBeeHelper = false;
   Timer? _locationCheckTimer;
+  String? _currentLocationId;
+  String? _currentMissionId;
 
   @override
   void initState() {
@@ -245,6 +248,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
     setState(() => _isSaving = true);
 
     try {
+      print('Starting quest creation...'); // Debug log
       final supabase = Supabase.instance.client;
       final user = supabase.auth.currentUser;
       
@@ -252,6 +256,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
         throw Exception('User not authenticated');
       }
       
+      print('Creating quest record...'); // Debug log
       // Create the quest
       final questResponse = await supabase
           .from('quests')
@@ -267,6 +272,12 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
           .select()
           .single();
 
+      print('Quest created with ID: ${questResponse['id']}'); // Debug log
+
+      // Store the quest ID
+      widget.questId = questResponse['id'];
+
+      print('Preparing location data...'); // Debug log
       // Prepare all locations data
       final locationsData = _locations.asMap().entries.map((entry) {
         final index = entry.key;
@@ -283,14 +294,33 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
         };
       }).toList();
 
+      print('Creating quest locations...'); // Debug log
       // Insert all locations at once
-      await supabase
+      final locationResponse = await supabase
           .from('quest_locations')
-          .insert(locationsData);
+          .insert(locationsData)
+          .select();
 
+      print('Quest locations created, updating local data...'); // Debug log
+      // Update location IDs
+      for (var i = 0; i < _locations.length; i++) {
+        _locations[i] = Location(
+          id: locationResponse[i]['id'],
+          name: _locations[i].name,
+          description: _locations[i].description,
+          latitude: _locations[i].latitude,
+          longitude: _locations[i].longitude,
+          timeSlot: _locations[i].timeSlot,
+          category: _locations[i].category,
+        );
+      }
+
+      print('All data updated, showing bee helper dialog...'); // Debug log
       if (!mounted) return;
 
-      // Navigate to QuestStartScreen
+      setState(() => _isSaving = false);
+      
+      // Navigate to QuestStartScreen instead of showing bee helper dialog
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -301,17 +331,21 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
           ),
         ),
       );
-      
-    } catch (e) {
-      if (!mounted) return;
+    
+    } catch (e, stackTrace) {
       print('Error starting quest: $e'); // Debug log
+      print('Stack trace: $stackTrace'); // Debug log
+      
+      if (!mounted) return;
+      
+      setState(() => _isSaving = false);
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to start quest: $e')),
+        SnackBar(
+          content: Text('Failed to start quest: ${e.toString()}'),
+          duration: Duration(seconds: 5),
+        ),
       );
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
     }
   }
 
@@ -430,7 +464,6 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
       progress += 0.02;
       if (progress >= 1) {
         timer.cancel();
-        _showBeeHelperDialog();
       } else {
         _routeLayer!.lineTrimOffset = [0, progress];
       }
@@ -471,165 +504,6 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
         ),
       ),
     );
-  }
-
-  void _showBeeHelperDialog() {
-    if (!mounted) return;
-    
-    setState(() => _showBeeHelper = true);
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/images/bee-helper.png',
-              height: 100,
-              width: 100,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Are you ready to head to the first spot?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => _openGoogleMapsNavigation(_locations.first),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.navigation, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    'Navigate using Google Maps',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    // Start checking if user has reached the location
-    _startLocationCheck();
-  }
-
-  void _startLocationCheck() {
-    final locationService = Provider.of<LocationService>(context, listen: false);
-    _locationCheckTimer = Timer.periodic(Duration(seconds: 10), (timer) async {
-      if (_locations.isEmpty) {
-        timer.cancel();
-        return;
-      }
-
-      final firstLocation = _locations.first;
-      final currentLocation = await locationService.getCurrentLocation();
-      
-      if (currentLocation == null) return;
-
-      final distance = geo.Geolocator.distanceBetween(
-        currentLocation.latitude,
-        currentLocation.longitude,
-        firstLocation.latitude,
-        firstLocation.longitude,
-      );
-
-      // If within 50 meters of the location
-      if (distance <= 50) {
-        timer.cancel();
-        _showArrivalConfirmation();
-      }
-    });
-  }
-
-  void _showArrivalConfirmation() {
-    if (!mounted) return;
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/images/bee-helper.png',
-              height: 100,
-              width: 100,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'I see you have arrived!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Not yet'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    // TODO: Start the game
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                  ),
-                  child: Text(
-                    'Yes',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openGoogleMapsNavigation(Location location) async {
-    final url = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=${location.latitude},${location.longitude}',
-    );
-    
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open Google Maps')),
-      );
-    }
   }
 
   @override

@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
-import 'dart:typed_data';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:honeybee/core/services/location_service.dart';
 import 'package:honeybee/features/quest/presentation/screens/quest_page.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,18 +12,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _locationService = LocationService();
-  MapboxMap? _mapController;
   List<Map<String, dynamic>> _quests = [];
   bool _isLoading = true;
   String? _error;
   int _selectedIndex = 0;
-  bool _isDisposed = false;
-  PointAnnotationManager? _pointAnnotationManager;
 
   @override
   void initState() {
     super.initState();
-    MapboxOptions.setAccessToken(dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '');
     _loadQuests();
     _startLocationTracking();
   }
@@ -35,22 +27,61 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadQuests() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        setState(() {
+          _quests = [];
+          _isLoading = false;
+        });
+        return;
+      }
 
       final response = await Supabase.instance.client
           .from('quests')
-          .select('*, quest_locations(*)')
+          .select('''
+            *,
+            quest_locations (
+              id,
+              location_name,
+              latitude,
+              longitude,
+              visited_at
+            )
+          ''')
           .eq('user_id', user.id)
           .order('created_at', ascending: false);
 
+      debugPrint('Supabase response: $response');
+
+      if (response == null) {
+        setState(() {
+          _quests = [];
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Ensure response is a List before casting
+      final questsList = response is List ? response : [];
+      
       setState(() {
-        _quests = List<Map<String, dynamic>>.from(response);
+        _quests = questsList.map((quest) {
+          // Safely handle null values
+          final questMap = Map<String, dynamic>.from(quest);
+          questMap['title'] = questMap['title'] ?? 'Untitled Quest';
+          questMap['description'] = questMap['description'] ?? '';
+          questMap['total_points'] = questMap['total_points'] ?? 0;
+          questMap['quest_locations'] = questMap['quest_locations'] ?? [];
+          return questMap;
+        }).toList();
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('Error loading quests: $e');
+      debugPrint('Stack trace: $stackTrace');
       setState(() {
-        _error = 'Failed to load quests';
+        _error = 'Failed to load quests: ${e.toString()}';
         _isLoading = false;
+        _quests = [];
       });
     }
   }
@@ -67,49 +98,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       }
-    }
-  }
-
-  void _onMapCreated(MapboxMap mapboxMap) async {
-    if (_isDisposed) return;
-    _mapController = mapboxMap;
-    _pointAnnotationManager = await mapboxMap.annotations.createPointAnnotationManager();
-    _updateMapMarkers();
-  }
-
-  void _updateMapMarkers() async {
-    if (_mapController == null || _isDisposed) return;
-
-    try {
-      // Clear existing markers
-      await _pointAnnotationManager?.deleteAll();
-
-      // Add markers for each quest location
-      for (final quest in _quests) {
-        if (_isDisposed) return; // Check if disposed before continuing
-        
-        for (final location in quest['quest_locations']) {
-          if (_isDisposed) return; // Check if disposed before continuing
-          
-          final ByteData bytes = await rootBundle.load('assets/symbols/custom-icon.png');
-          final Uint8List list = bytes.buffer.asUint8List();
-          
-          if (!_isDisposed && _pointAnnotationManager != null) {
-            await _pointAnnotationManager!.create(PointAnnotationOptions(
-              geometry: Point(
-                coordinates: Position(
-                  location['longitude'] as double,
-                  location['latitude'] as double,
-                ),
-              ),
-              image: list,
-            ));
-          }
-        }
-      }
-    } catch (e) {
-      if (!mounted) return;
-      print('Error updating map markers: $e');
     }
   }
 
@@ -131,60 +119,116 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(child: Text(_error!))
-              : Column(
-                  children: [
-                    // Map View
-                    Expanded(
-                      flex: 2,
-                      child: MapWidget(
-                        styleUri: MapboxStyles.MAPBOX_STREETS,
-                        cameraOptions: CameraOptions(
-                          center: Point(coordinates: Position(103.3894, 3.5057)), // Pekan coordinates
-                          zoom: 12,
-                          bearing: 0,
-                          pitch: 0,
-                        ),
-                        onMapCreated: _onMapCreated,
-                      ),
-                    ),
-
-                    // Quest List
-                    Expanded(
-                      flex: 1,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _quests.length,
-                        itemBuilder: (context, index) {
-                          final quest = _quests[index];
-                          return Card(
-                            child: ListTile(
-                              leading: const Icon(Icons.flag),
-                              title: Text(quest['title']),
-                              subtitle: Text(quest['description']),
-                              trailing: Text(
-                                '${quest['points']} pts',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                    ),
-                              ),
-                              onTap: () {
-                                // TODO: Navigate to quest details
-                              },
+              : _quests.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/images/bee-helper.png',
+                            height: 120,
+                            width: 120,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No quests yet!',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Start a new quest to begin your adventure',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const QuestPage()),
+                              );
+                            },
+                            icon: const Icon(Icons.add),
+                            label: const Text('Start New Quest'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                             ),
-                          );
-                        },
+                          ),
+                        ],
                       ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _quests.length,
+                      itemBuilder: (context, index) {
+                        final quest = _quests[index];
+                        final locations = List<Map<String, dynamic>>.from(quest['quest_locations'] ?? []);
+                        final completedLocations = locations.where((loc) => loc['visited_at'] != null).length;
+                        
+                        return Card(
+                          elevation: 2,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: Column(
+                            children: [
+                              ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.orange,
+                                  child: Icon(
+                                    quest['status'] == 'completed' ? Icons.check : Icons.flag,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                title: Text(quest['title'] ?? 'Untitled Quest'),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(quest['description'] ?? ''),
+                                    Text(
+                                      'City: ${quest['city']}',
+                                      style: Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                                trailing: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      '${quest['total_points'] ?? 0} pts',
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      '$completedLocations/${locations.length}',
+                                      style: Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (quest['status'] == 'active')
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: LinearProgressIndicator(
+                                    value: locations.isEmpty ? 0 : completedLocations / locations.length,
+                                    backgroundColor: Colors.grey[200],
+                                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
-                  ],
-                ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Navigate to new quest creation
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const QuestPage()),
+          );
         },
+        backgroundColor: Colors.orange,
         child: const Icon(Icons.add),
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -208,7 +252,6 @@ class _HomeScreenState extends State<HomeScreen> {
             _selectedIndex = index;
           });
           
-          // Handle navigation based on index
           switch (index) {
             case 0: // Home
               // Already on home screen
@@ -230,12 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _isDisposed = true;
-    _pointAnnotationManager?.deleteAll();
-    _pointAnnotationManager = null;
     _locationService.stopTracking();
-    _mapController?.dispose();
-    _mapController = null;
     super.dispose();
   }
 }

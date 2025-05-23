@@ -37,38 +37,44 @@ class _QuizScreenState extends State<QuizScreen> {
 
   Future<void> _initQuiz() async {
     try {
-      // Start the mission progress
+      // Get the current user
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) throw Exception('User not authenticated');
 
-      // Create or get user mission progress
+      // Get existing mission progress
       final progressResponse = await Supabase.instance.client
           .from('user_mission_progress')
-          .upsert({
-            'user_id': user.id,
-            'mission_id': widget.missionId,
-            'status': 'in_progress',
-            'started_at': DateTime.now().toIso8601String(),
-          })
           .select()
+          .eq('user_id', user.id)
+          .eq('mission_id', widget.missionId)
           .single();
 
       _userMissionProgressId = progressResponse['id'];
 
-      // Load questions for this mission
-      final questionsResponse = await Supabase.instance.client
-          .from('mission_questions')
-          .select()
-          .eq('mission_id', widget.missionId)
-          .order('sequence_number');
+      // Load questions from location_missions
+      final locationMission = await Supabase.instance.client
+          .from('location_missions')
+          .select('questions')
+          .eq('location_name', widget.locationName)
+          .single();
 
+      final List<dynamic> questionsJson = locationMission['questions'];
+      
       if (mounted) {
         setState(() {
-          _questions = List<Map<String, dynamic>>.from(questionsResponse);
+          _questions = questionsJson.map((q) => {
+            'id': '${widget.missionId}_${questionsJson.indexOf(q)}',
+            'question': q['question'],
+            'correct_answer': q['correct_answer'],
+            'options': q['options'],
+            'points': q['points'] ?? (questionsJson.indexOf(q) == 0 ? 40 : 30),
+            'sequence_number': questionsJson.indexOf(q) + 1,
+          }).toList();
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('Error loading quiz: $e'); // Debug log
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load quiz: $e')),
@@ -127,6 +133,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
       answers.add({
         'question_id': _questions[_currentQuestionIndex]['id'],
+        'question': _questions[_currentQuestionIndex]['question'],
         'answer': answer,
         'is_correct': isCorrect,
         'points_earned': isCorrect ? points : 0,

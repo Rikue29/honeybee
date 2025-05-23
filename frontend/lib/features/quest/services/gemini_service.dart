@@ -10,6 +10,7 @@ class Location {
   final double longitude;
   final String timeSlot;
   final String category;
+  final String? missionId;
 
   Location({
     required this.id,
@@ -19,6 +20,7 @@ class Location {
     required this.longitude,
     required this.timeSlot,
     required this.category,
+    this.missionId,
   });
 
   factory Location.fromJson(Map<String, dynamic> json) {
@@ -30,6 +32,7 @@ class Location {
       longitude: json['longitude'],
       timeSlot: json['timeSlot'],
       category: json['category'],
+      missionId: json['missionId'],
     );
   }
 
@@ -42,6 +45,7 @@ class Location {
       'longitude': longitude,
       'timeSlot': timeSlot,
       'category': category,
+      'missionId': missionId,
     };
   }
 }
@@ -57,6 +61,48 @@ class GeminiService {
     required List<String> interests,
     required List<String> cuisinePreferences,
   }) async {
+    if (city.toLowerCase() == 'pekan') {
+      return [
+        Location(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          name: 'Sultan Abu Bakar Museum',
+          description: 'A grand museum showcasing the rich history of Pahang\'s royal family and cultural heritage.',
+          latitude: 3.4934,
+          longitude: 103.4274,
+          timeSlot: '9:00 AM',
+          category: 'history',
+        ),
+        Location(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          name: 'Masjid Sultan Abdullah',
+          description: 'A historic mosque built in 1932, featuring beautiful Islamic architecture and spiritual significance.',
+          latitude: 3.4927,
+          longitude: 103.4266,
+          timeSlot: '11:00 AM',
+          category: 'culture',
+        ),
+        Location(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          name: 'Pekan Riverfront',
+          description: 'A scenic waterfront along the Pahang River, perfect for experiencing local life and cuisine.',
+          latitude: 3.4930,
+          longitude: 103.4261,
+          timeSlot: '2:00 PM',
+          category: 'leisure',
+        ),
+        Location(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          name: 'Abu Bakar Palace',
+          description: 'A majestic palace that serves as a testament to Pekan\'s royal heritage and architectural beauty.',
+          latitude: 3.4940,
+          longitude: 103.4280,
+          timeSlot: '4:00 PM',
+          category: 'history',
+        ),
+      ];
+    }
+
+    // For other cities, use the Gemini API
     if (apiKey.isEmpty) {
       throw Exception('Gemini API key not found');
     }
