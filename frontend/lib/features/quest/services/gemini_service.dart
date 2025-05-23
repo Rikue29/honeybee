@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class Location {
+  final String id;
   final String name;
   final String description;
   final double latitude;
@@ -11,6 +12,7 @@ class Location {
   final String category;
 
   Location({
+    required this.id,
     required this.name,
     required this.description,
     required this.latitude,
@@ -21,22 +23,24 @@ class Location {
 
   factory Location.fromJson(Map<String, dynamic> json) {
     return Location(
-      name: json['name'],
-      description: json['description'],
-      latitude: json['latitude'],
-      longitude: json['longitude'],
-      timeSlot: json['timeSlot'],
-      category: json['category'],
+      id: json['id'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String,
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
+      timeSlot: json['time_slot'] as String,
+      category: json['category'] as String,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'name': name,
       'description': description,
       'latitude': latitude,
       'longitude': longitude,
-      'timeSlot': timeSlot,
+      'time_slot': timeSlot,
       'category': category,
     };
   }
