@@ -216,7 +216,7 @@ def generate_video(media_files, duration=30, music_path='sound/default_music.mp3
             audio_codec='aac',
             bitrate='4000k',  # Higher bitrate for better quality
             audio_bitrate='192k',  # Higher audio quality
-            preset='medium',  # Better compression
+            preset='ultrafast',  # Better compression
             threads=4,
             ffmpeg_params=[
                 '-pix_fmt', 'yuv420p',  # Required for iOS compatibility
