@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Body
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 from moviepy.config import change_settings
 from supabase import create_client, Client
+import requests
 
 # Configure ImageMagick path for Windows
 if os.name == 'nt':  # Windows
@@ -147,17 +148,16 @@ def upload_to_supabase(local_file_path, supabase_path):
     public_url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(supabase_path)
     return public_url
 
-def generate_video(media_files, duration=30, music_path='sound/default_music.mp3', title_text="My Journey"):
+def generate_video(media_file_paths, duration=30, music_path='sound/default_music.mp3', title_text="My Journey"):
     try:
         target_size = (720, 1280)  # Portrait for mobile
         clips = []
-        for file in media_files:
-            filename = file.filename.lower()
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[-1]) as temp:
-                content = file.file.read()
-                temp.write(content)
-                temp_path = temp.name
-                file.file.seek(0)
+        temp_files_to_clean = []
+
+        for file_path in media_file_paths:
+            filename = os.path.basename(file_path).lower()
+            temp_path = file_path
+            temp_files_to_clean.append(temp_path)
 
             if filename.endswith(('.mp4', '.mov')):
                 clip = VideoFileClip(temp_path)
@@ -230,24 +230,70 @@ def generate_video(media_files, duration=30, music_path='sound/default_music.mp3
         # Upload to Supabase Storage
         supabase_path = f"videos/{os.path.basename(output_path)}"
         public_url = upload_to_supabase(output_path, supabase_path)
+        
+        # Clean up temporary files
+        for temp_file_path in temp_files_to_clean:
+            try:
+                os.remove(temp_file_path)
+            except OSError as e:
+                print(f"Error deleting temp file {temp_file_path}: {e}")
+        if os.path.exists(output_path):
+             try:
+                os.remove(output_path)
+             except OSError as e:
+                print(f"Error deleting output_path {output_path}: {e}")
+
         return public_url
     except Exception as e:
         print(f"Error in generate_video: {str(e)}")
+        # Clean up temporary files in case of an error too
+        for temp_file_path in temp_files_to_clean:
+            try:
+                os.remove(temp_file_path)
+            except OSError as e:
+                print(f"Error deleting temp file {temp_file_path} during error handling: {e}")
         return {"error": str(e)}
 
 @app.post("/api/generate-video")
 async def video_endpoint(
-    files: list[UploadFile] = File(...),
-    duration: int = Form(30),
-    music_path: str = Form('sound/default_music.mp3'),
-    title_text: str = Form("My Journey")
+    file_urls: list[str] = Body(...),
+    duration: int = Body(30),
+    music_path: str = Body('sound/default_music.mp3'),
+    title_text: str = Body("My Journey")
 ):
+    media_file_paths = []
     try:
-        public_url = generate_video(files, duration, music_path, title_text)
+        for url in file_urls:
+            response = requests.get(url)
+            response.raise_for_status()
+            suffix = os.path.splitext(url)[-1]
+            temp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            temp.write(response.content)
+            temp.close()
+            media_file_paths.append(temp.name)
+
+        public_url = generate_video(media_file_paths, duration, music_path, title_text)
+        
         if isinstance(public_url, dict) and 'error' in public_url:
             return JSONResponse(content=public_url, status_code=500)
         return JSONResponse(content={"public_url": public_url})
+    except requests.exceptions.RequestException as e:
+        # Clean up any downloaded files if request fails
+        for temp_file_path in media_file_paths:
+            if os.path.exists(temp_file_path):
+                try:
+                    os.remove(temp_file_path)
+                except OSError as ose:
+                    print(f"Error deleting temp file {temp_file_path} during request exception: {ose}")
+        return JSONResponse(content={"error": f"Failed to download file: {str(e)}"}, status_code=500)
     except Exception as e:
+        # General error handling, also clean up temp files
+        for temp_file_path in media_file_paths:
+            if os.path.exists(temp_file_path):
+                try:
+                    os.remove(temp_file_path)
+                except OSError as ose:
+                    print(f"Error deleting temp file {temp_file_path} during general exception: {ose}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 if __name__ == '__main__':
