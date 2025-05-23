@@ -5,6 +5,9 @@ RUN apt-get update && \
     apt-get install -y ffmpeg imagemagick && \
     rm -rf /var/lib/apt/lists/*
 
+# Fix ImageMagick security policy for MoviePy text overlays
+RUN sed -i 's/<policy domain="coder" rights="none" pattern="MVG" \\/>/<\\!-- <policy domain="coder" rights="none" pattern="MVG" \\/> -->/g' /etc/ImageMagick-6/policy.xml || true
+
 # Set work directory
 WORKDIR /app
 
@@ -15,14 +18,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the app code
 COPY . .
 
-# Copy the logo file
-COPY HoneybeeLogo.png .
-
-# Copy the policy.xml file
-COPY policy.xml /etc/ImageMagick-6/policy.xml
-
 # Expose the port
 EXPOSE 5000
 
-# No default CMD, so you can specify uvicorn with --reload for dev
- 
+# Run the FastAPI app with Uvicorn
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"] 

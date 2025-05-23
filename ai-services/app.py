@@ -1,5 +1,6 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import tempfile
 from moviepy.editor import VideoFileClip, ImageClip, concatenate_videoclips, TextClip, CompositeVideoClip, AudioFileClip, ColorClip
@@ -9,42 +10,46 @@ from dotenv import load_dotenv
 import moviepy.video.fx.all as vfx
 import cv2
 import numpy as np
-
-# Configure MoviePy to use ImageMagick
 from moviepy.config import change_settings
-change_settings({"IMAGEMAGICK_BINARY": "magick"})  # Using the command directly since it's in PATH
+
+# Configure ImageMagick path for Windows
+if os.name == 'nt':  # Windows
+    IMAGEMAGICK_BINARY = r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe"
+    if os.path.exists(IMAGEMAGICK_BINARY):
+        change_settings({"IMAGEMAGICK_BINARY": IMAGEMAGICK_BINARY})
 
 # Load environment variables
 load_dotenv()
 
-# Initialize Flask app
-app = Flask(__name__)
+# Initialize FastAPI app
+app = FastAPI()
 
-# Helper function for video generation
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 def resize_and_pad(clip, target_size=(720, 1280)):
     w, h = target_size
 
     def make_blur_frame(get_frame, t):
         frame = get_frame(t)
-        # Convert to OpenCV format
         frame_cv = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        # Resize to fill background
         bg = cv2.resize(frame_cv, (w, h))
-        # Apply Gaussian blur
         bg = cv2.GaussianBlur(bg, (99, 99), 30)
-        # Resize original to fit inside target
         ih, iw = frame.shape[:2]
         scale = min(w / iw, h / ih)
         nw, nh = int(iw * scale), int(ih * scale)
         fg = cv2.resize(frame_cv, (nw, nh))
-        # Center foreground on background
         x1 = (w - nw) // 2
         y1 = (h - nh) // 2
         bg[y1:y1+nh, x1:x1+nw] = fg
-        # Convert back to MoviePy format
         return cv2.cvtColor(bg, cv2.COLOR_BGR2RGB)
 
-    # For images
     if hasattr(clip, 'img'):
         def make_blur_image():
             frame = clip.img
@@ -61,8 +66,71 @@ def resize_and_pad(clip, target_size=(720, 1280)):
             return cv2.cvtColor(bg, cv2.COLOR_BGR2RGB)
         return ImageClip(make_blur_image()).set_duration(clip.duration)
     else:
-        # For videos
         return clip.fl(lambda gf, t: make_blur_frame(gf, t)).set_duration(clip.duration)
+
+def create_title_overlay(clip, title_text, target_size):
+    try:
+        # Create text clip with transparent background
+        txt_clip = TextClip(
+            title_text,
+            fontsize=70,
+            color='white',
+            stroke_color='black',
+            stroke_width=2,
+            size=(target_size[0] * 0.9, None),  # 90% of video width
+            method='caption'
+        )
+        # Position text at the top with padding
+        txt_clip = txt_clip.set_position(('center', 50))
+        # Set duration to match the clip
+        txt_clip = txt_clip.set_duration(clip.duration)
+        # Composite the text over the video
+        return CompositeVideoClip([clip, txt_clip])
+    except Exception as e:
+        print(f"Warning: Could not create title overlay: {str(e)}")
+        return clip
+
+def create_watermark(target_size):
+    try:
+        # Path to the logo image (relative to ai-services/app.py)
+        logo_path = os.path.join(os.path.dirname(__file__), 'HoneybeeLogo.png')
+        logo_height = 120  # px
+        logo_clip = None
+        watermark_duration = 0.5  # seconds (shortened)
+        if os.path.exists(logo_path):
+            logo_clip = ImageClip(logo_path).resize(height=logo_height)
+            logo_clip = logo_clip.set_position(('center', 'center')).set_duration(watermark_duration)
+        # Create watermark text
+        watermark_text = TextClip(
+            "Created by Honeybee",
+            fontsize=48,
+            color='white',
+            stroke_color='black',
+            stroke_width=2,
+            method='caption',
+            size=(target_size[0] * 0.9, None)
+        ).set_duration(watermark_duration)
+        # Position text below the logo
+        if logo_clip:
+            # Stack logo and text vertically, centered
+            # Calculate y positions
+            total_height = logo_clip.h + 20 + watermark_text.h
+            logo_y = (target_size[1] - total_height) // 2
+            text_y = logo_y + logo_clip.h + 20
+            logo_clip = logo_clip.set_position(('center', logo_y))
+            watermark_text = watermark_text.set_position(('center', text_y))
+            clips = [logo_clip, watermark_text]
+        else:
+            # Only text, centered
+            watermark_text = watermark_text.set_position(('center', 'center'))
+            clips = [watermark_text]
+        # Black background
+        bg = ColorClip(target_size, color=(0, 0, 0)).set_duration(watermark_duration)
+        watermark = CompositeVideoClip([bg] + clips, size=target_size).set_duration(watermark_duration)
+        return watermark
+    except Exception as e:
+        print(f"Warning: Could not create watermark: {str(e)}")
+        return None
 
 def generate_video(media_files, duration=30, music_path='sound/default_music.mp3', title_text="My Journey"):
     try:
@@ -71,37 +139,45 @@ def generate_video(media_files, duration=30, music_path='sound/default_music.mp3
         for file in media_files:
             filename = file.filename.lower()
             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[-1]) as temp:
-                file.save(temp)
+                content = file.file.read()
+                temp.write(content)
                 temp_path = temp.name
+                file.file.seek(0)
 
             if filename.endswith(('.mp4', '.mov')):
                 clip = VideoFileClip(temp_path)
             elif filename.endswith(('.jpg', '.png')):
                 try:
                     image_duration = float(duration)
-                    image_duration = min(max(image_duration, 1), 5)
+                    # Limit image duration between 2 and 3 seconds
+                    image_duration = min(max(image_duration, 2), 3)
                 except (ValueError, TypeError):
-                    image_duration = 5
+                    image_duration = 3
                 clip = ImageClip(temp_path).set_duration(image_duration)
             else:
                 continue
-            # Resize and pad
+
             clip = resize_and_pad(clip, target_size)
             clips.append(clip)
 
         if not clips:
             raise ValueError("No valid media files provided")
 
-        if title_text:
-            title_clip = TextClip(title_text, fontsize=70, color='white', bg_color='black', size=target_size)
-            title_clip = title_clip.set_duration(3)
-            clips = [title_clip] + clips
+        # Add title overlay to the first clip
+        if title_text and clips:
+            clips[0] = create_title_overlay(clips[0], title_text, target_size)
 
         final_clips = []
         for i, clip in enumerate(clips):
             if i > 0:
                 clip = clip.crossfadein(1.0)
             final_clips.append(clip)
+
+        # Add watermark at the end
+        watermark = create_watermark(target_size)
+        if watermark:
+            final_clips.append(watermark)
+
         final = concatenate_videoclips(final_clips, method="compose")
 
         if music_path and os.path.exists(music_path):
@@ -117,68 +193,44 @@ def generate_video(media_files, duration=30, music_path='sound/default_music.mp3
             os.makedirs(downloads_dir)
         output_path = os.path.join(downloads_dir, f"{uuid.uuid4()}.mp4")
 
-        # Faster encoding, lower bitrate, smaller size
+        # iOS-compatible video settings
         final.write_videofile(
             output_path,
-            fps=24,
+            fps=30,  # Standard iOS frame rate
             codec='libx264',
             audio_codec='aac',
-            bitrate='1000k',
-            audio_bitrate='96k',
-            preset='ultrafast',
+            bitrate='4000k',  # Higher bitrate for better quality
+            audio_bitrate='192k',  # Higher audio quality
+            preset='ultrafast',  # <--- change here
             threads=4,
             ffmpeg_params=[
-                '-pix_fmt', 'yuv420p',
-                '-movflags', '+faststart'
+                '-pix_fmt', 'yuv420p',  # Required for iOS compatibility
+                '-movflags', '+faststart',  # Enables streaming
+                '-profile:v', 'high',  # High profile for better quality
+                '-level', '4.0',  # Compatibility level
+                '-crf', '23'  # Constant Rate Factor for quality
             ]
         )
         return output_path
     except Exception as e:
         print(f"Error in generate_video: {str(e)}")
-        import traceback
-        print(f"Traceback: {traceback.format_exc()}")
         return {"error": str(e)}
 
-# Routes
-@app.route('/api/generate-video', methods=['POST'])
-def video_endpoint():
+@app.post("/api/generate-video")
+async def video_endpoint(
+    files: list[UploadFile] = File(...),
+    duration: int = Form(30),
+    music_path: str = Form('sound/default_music.mp3'),
+    title_text: str = Form("My Journey")
+):
     try:
-        print("Received request")
-        print("request.files:", request.files)
-        print("request.form:", request.form)
-        
-        if 'files' not in request.files:
-            print("No files in request.files")
-            return jsonify({"error": "No files provided"}), 400
-
-        files = request.files.getlist('files')
-        print(f"Number of files received: {len(files)}")
-        
-        # Get and validate duration
-        try:
-            duration = request.form.get('duration', default=30, type=int)
-            print(f"Duration from request: {duration}")
-        except ValueError:
-            print("Invalid duration value, using default")
-            duration = 30
-            
-        music_path = request.form.get('music_path', default='sound/default_music.mp3')
-        title_text = request.form.get('title_text', default="My Journey")
-
-        print(f"Calling generate_video with duration={duration}")
         output_path = generate_video(files, duration, music_path, title_text)
-        
         if isinstance(output_path, dict) and 'error' in output_path:
-            print(f"Error in generate_video: {output_path['error']}")
-            return jsonify(output_path), 500
-
-        return jsonify({"video_path": output_path})
+            return JSONResponse(content=output_path, status_code=500)
+        return JSONResponse(content={"video_path": output_path})
     except Exception as e:
-        print(f"Error in video_endpoint: {str(e)}")
-        import traceback
-        print(f"Traceback: {traceback.format_exc()}")
-        return jsonify({"error": str(e)}), 500
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=os.getenv('FLASK_ENV') == 'development') 
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=5000) 
