@@ -10,6 +10,8 @@ import '../../services/gemini_service.dart';
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'quiz_screen.dart';
 
 class QuestStartScreen extends StatefulWidget {
   final List<Location> locations;
@@ -298,22 +300,57 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                   child: Text('Not yet'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.pop(context);
-                    setState(() {
-                      _currentLocationIndex++;
-                    });
-                    if (_currentLocationIndex < widget.locations.length) {
-                      _showNavigateToNextPrompt();
-                    } else {
-                      _showQuestCompleteDialog();
+                    
+                    try {
+                      // Get the quiz mission for this location
+                      final missions = await Supabase.instance.client
+                          .from('missions')
+                          .select()
+                          .eq('location_id', widget.locations[_currentLocationIndex].id)
+                          .eq('mission_type', 'quiz')
+                          .limit(1)
+                          .single();
+
+                      if (!mounted) return;
+
+                      // Start the quiz
+                      final score = await Navigator.push<int>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => QuizScreen(
+                            questId: widget.questId,
+                            locationId: widget.locations[_currentLocationIndex].id,
+                            missionId: missions['id'],
+                            locationName: widget.locations[_currentLocationIndex].name,
+                          ),
+                        ),
+                      );
+
+                      if (score != null && mounted) {
+                        setState(() {
+                          _currentLocationIndex++;
+                        });
+
+                        if (_currentLocationIndex < widget.locations.length) {
+                          _showNavigateToNextPrompt();
+                        } else {
+                          _showQuestCompleteDialog();
+                        }
+                      }
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to start quiz: $e')),
+                      );
                     }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                   ),
                   child: Text(
-                    'Complete Location',
+                    'Start Quiz',
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
@@ -522,6 +559,33 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+
+          // Debug controls
+          Positioned(
+            top: 16,
+            right: 16,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: Icon(Icons.bug_report, color: Colors.orange),
+                onPressed: () {
+                  // Simulate arrival at current location
+                  _showArrivalConfirmation();
+                },
+                tooltip: 'Debug: Simulate Arrival',
               ),
             ),
           ),
