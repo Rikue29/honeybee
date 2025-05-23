@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:honeybee/features/auth/presentation/screens/login_screen.dart';
 import 'package:honeybee/features/auth/presentation/screens/register_screen.dart';
 import 'package:honeybee/features/quest/presentation/screens/quest_completed_screen.dart';
+import 'package:honeybee/features/quest/domain/models/quest_highlight.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AppRouter extends StatefulWidget {
