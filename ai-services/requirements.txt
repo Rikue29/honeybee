@@ -15,4 +15,7 @@ pydantic==2.5.2
 opencv-python==4.9.0.80
 python-multipart==0.0.6
 gunicorn==21.2.0
-protobuf==4.25.3 
+protobuf==4.25.3
+postgrest==0.15.0
+realtime==0.2.0
+idna==3.9 
