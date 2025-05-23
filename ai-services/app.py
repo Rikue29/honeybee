@@ -142,7 +142,7 @@ def create_watermark(target_size):
 
 def upload_to_supabase(local_file_path, supabase_path):
     with open(local_file_path, "rb") as f:
-        res = supabase.storage.from_(SUPABASE_BUCKET).upload(supabase_path, f, upsert=True)
+        res = supabase.storage.from_(SUPABASE_BUCKET).upload(supabase_path, f)
     # Get the public URL
     public_url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(supabase_path)
     return public_url
