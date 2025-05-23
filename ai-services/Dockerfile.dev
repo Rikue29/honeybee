@@ -10,6 +10,7 @@ WORKDIR /app
 
 # Copy requirements and install
 COPY requirements.txt .
+RUN pip uninstall -y supabase-py supabase gotrue postgrest realtime httpx httpcore sniffio h11 || true
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the app code
