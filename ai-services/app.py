@@ -11,6 +11,7 @@ import moviepy.video.fx.all as vfx
 import cv2
 import numpy as np
 from moviepy.config import change_settings
+from supabase import create_client, Client
 
 # Configure ImageMagick path for Windows
 if os.name == 'nt':  # Windows
@@ -20,6 +21,13 @@ if os.name == 'nt':  # Windows
 
 # Load environment variables
 load_dotenv()
+
+# Supabase config from environment variables
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -132,6 +140,13 @@ def create_watermark(target_size):
         print(f"Warning: Could not create watermark: {str(e)}")
         return None
 
+def upload_to_supabase(local_file_path, supabase_path):
+    with open(local_file_path, "rb") as f:
+        res = supabase.storage.from_(SUPABASE_BUCKET).upload(supabase_path, f, upsert=True)
+    # Get the public URL
+    public_url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(supabase_path)
+    return public_url
+
 def generate_video(media_files, duration=30, music_path='sound/default_music.mp3', title_text="My Journey"):
     try:
         target_size = (720, 1280)  # Portrait for mobile
@@ -201,7 +216,7 @@ def generate_video(media_files, duration=30, music_path='sound/default_music.mp3
             audio_codec='aac',
             bitrate='4000k',  # Higher bitrate for better quality
             audio_bitrate='192k',  # Higher audio quality
-            preset='ultrafast',  # <--- change here
+            preset='medium',  # Better compression
             threads=4,
             ffmpeg_params=[
                 '-pix_fmt', 'yuv420p',  # Required for iOS compatibility
@@ -211,7 +226,11 @@ def generate_video(media_files, duration=30, music_path='sound/default_music.mp3
                 '-crf', '23'  # Constant Rate Factor for quality
             ]
         )
-        return output_path
+
+        # Upload to Supabase Storage
+        supabase_path = f"videos/{os.path.basename(output_path)}"
+        public_url = upload_to_supabase(output_path, supabase_path)
+        return public_url
     except Exception as e:
         print(f"Error in generate_video: {str(e)}")
         return {"error": str(e)}
@@ -224,10 +243,10 @@ async def video_endpoint(
     title_text: str = Form("My Journey")
 ):
     try:
-        output_path = generate_video(files, duration, music_path, title_text)
-        if isinstance(output_path, dict) and 'error' in output_path:
-            return JSONResponse(content=output_path, status_code=500)
-        return JSONResponse(content={"video_path": output_path})
+        public_url = generate_video(files, duration, music_path, title_text)
+        if isinstance(public_url, dict) and 'error' in public_url:
+            return JSONResponse(content=public_url, status_code=500)
+        return JSONResponse(content={"public_url": public_url})
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
