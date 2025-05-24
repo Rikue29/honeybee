@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:http/http.dart' as http;
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class GeneratedVideoScreen extends StatefulWidget {
   final String videoUrl;
@@ -20,6 +23,7 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
   String? _errorMessage;
   bool _isRetrying = false;
   int _retryCount = 0;
+  bool _isSaving = false;
   static const int maxRetries = 3;
   static const int retryDelay = 2; // seconds
 
@@ -105,6 +109,50 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
       _isRetrying = false;
     });
     await _initializeVideo();
+  }
+
+  Future<void> _downloadAndShareVideo() async {
+    try {
+      setState(() {
+        _isSaving = true;
+        _errorMessage = null;
+      });
+
+      // Download video
+      final response = await http.get(Uri.parse(widget.videoUrl));
+      if (response.statusCode != 200) {
+        throw Exception('Failed to download video');
+      }
+
+      // Get application documents directory for saving
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final videoFile = File('${directory.path}/journey_video_$timestamp.mp4');
+
+      // Save the video file
+      await videoFile.writeAsBytes(response.bodyBytes);
+
+      // Share the video file
+      final result = await Share.shareXFiles(
+        [XFile(videoFile.path)],
+        text: 'Check out my amazing journey video!',
+      );
+
+      // Clean up the file after sharing
+      if (await videoFile.exists()) {
+        await videoFile.delete();
+      }
+
+      setState(() {
+        _isSaving = false;
+      });
+    } catch (e) {
+      print('Error sharing video: $e');
+      setState(() {
+        _isSaving = false;
+        _errorMessage = 'Failed to share video: $e';
+      });
+    }
   }
 
   @override
@@ -248,7 +296,11 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
                                   minimumSize: const Size(double.infinity, 48),
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(24),
+                                    side: const BorderSide(
+                                      color: Color(0xFFEA8601),
+                                      width: 1,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -271,17 +323,18 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
                               const SizedBox(height: 12),
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.share),
-                                label: const Text('Share On Social Media'),
-                                onPressed: () {
-                                  // TODO: Implement share to social media
-                                },
+                                label: Text(_isSaving
+                                    ? 'Preparing Video...'
+                                    : 'Share On Social Media'),
+                                onPressed:
+                                    _isSaving ? null : _downloadAndShareVideo,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: const Color(0xFFEA8601),
+                                  backgroundColor: const Color(0xFFEA8601),
+                                  foregroundColor: Colors.white,
                                   minimumSize: const Size(double.infinity, 48),
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(24),
                                   ),
                                 ),
                               ),

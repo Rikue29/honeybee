@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'generated_video_screen.dart'; // To navigate to after success
+import 'dart:async'; // Added for Timer
 
 class VideoGenerationLoadingScreen extends StatefulWidget {
   final String journeyId; // Assuming journeyId is needed to get file URLs
@@ -21,11 +22,77 @@ class _VideoGenerationLoadingScreenState
     extends State<VideoGenerationLoadingScreen> {
   LoadingScreenState _screenState = LoadingScreenState.loading;
   String? _errorMessage;
+  Timer? _messageTimer;
+  Timer? _progressTimer;
+  int _currentMessageIndex = 0;
+  double _progressValue = 0.0;
+  static const int totalLoadingTimeInSeconds = 60;
+  static const int messageChangeInterval = 10;
+  DateTime? _startTime;
+
+  final List<String> _loadingMessages = [
+    "Igniting the video creation engine...",
+    "Gathering your best shots...",
+    "Mixing in some visual flair...",
+    "Harmonizing audio and visuals...",
+    "Rendering your masterpiece...",
+    "Adding final touches... Almost ready!",
+  ];
 
   @override
   void initState() {
     super.initState();
+    _startTime = DateTime.now();
     _initiateVideoGeneration();
+    if (_screenState == LoadingScreenState.loading) {
+      _startLoadingAnimation();
+    }
+  }
+
+  @override
+  void dispose() {
+    _messageTimer?.cancel();
+    _progressTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startLoadingAnimation() {
+    // Update progress more frequently for smoother animation
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      final elapsedSeconds =
+          DateTime.now().difference(_startTime!).inMilliseconds / 1000;
+      setState(() {
+        // Calculate progress based on actual elapsed time
+        _progressValue =
+            (elapsedSeconds / totalLoadingTimeInSeconds).clamp(0.0, 0.99);
+
+        if (elapsedSeconds >= totalLoadingTimeInSeconds) {
+          _progressValue = 0.99; // Ensure we stay at 99% until complete
+          timer.cancel();
+        }
+      });
+    });
+
+    // Update messages less frequently
+    _messageTimer =
+        Timer.periodic(Duration(seconds: messageChangeInterval), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        if (_currentMessageIndex < _loadingMessages.length - 1) {
+          _currentMessageIndex++;
+        } else {
+          timer.cancel();
+        }
+      });
+    });
   }
 
   Future<List<String>> _getSupabaseFileUrlsForLoading() async {
@@ -75,7 +142,17 @@ class _VideoGenerationLoadingScreenState
     setState(() {
       _screenState = LoadingScreenState.loading;
       _errorMessage = null;
+      _currentMessageIndex = 0;
+      _progressValue = 0.0;
+      _startTime = DateTime.now(); // Reset start time when retrying
     });
+
+    // Cancel existing timers if any
+    _messageTimer?.cancel();
+    _progressTimer?.cancel();
+
+    // Start new animation
+    _startLoadingAnimation();
 
     try {
       final urls = await _getSupabaseFileUrlsForLoading();
@@ -117,6 +194,7 @@ class _VideoGenerationLoadingScreenState
     } catch (e) {
       print('LoadingScreen: Video generation process error: $e');
       if (mounted) {
+        _messageTimer?.cancel(); // Stop timer on error
         setState(() {
           _screenState = LoadingScreenState.error;
           _errorMessage = e.toString();
@@ -140,25 +218,37 @@ class _VideoGenerationLoadingScreenState
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: _screenState == LoadingScreenState.loading
-              ? const Column(
+              ? Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(
+                    const CircularProgressIndicator(
                       valueColor:
                           AlwaysStoppedAnimation<Color>(Color(0xFFEA8601)),
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 30),
                     Text(
-                      'Generating your journey video...',
+                      _loadingMessages[_currentMessageIndex],
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFF666666),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF444444),
                       ),
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      'This may take a few moments.',
+                    const SizedBox(height: 15),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                      child: LinearProgressIndicator(
+                        value: _progressValue,
+                        backgroundColor: Colors.grey[300],
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            Color(0xFFEA8601)),
+                        minHeight: 6,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "This might take a few moments...",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
@@ -195,7 +285,9 @@ class _VideoGenerationLoadingScreenState
                     ElevatedButton.icon(
                       icon: const Icon(Icons.refresh),
                       label: const Text('Try Again'),
-                      onPressed: _initiateVideoGeneration, // Retry
+                      onPressed: () {
+                        _initiateVideoGeneration(); // Also restart message cycle here if needed.
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFEA8601),
                         foregroundColor: Colors.white,
