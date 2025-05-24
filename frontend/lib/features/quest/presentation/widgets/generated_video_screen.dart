@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import '../../presentation/screens/next_area_prompt_screen.dart';
 
 class GeneratedVideoScreen extends StatefulWidget {
   final String videoUrl;
@@ -288,7 +289,21 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
                                 icon: const Icon(Icons.groups),
                                 label: const Text('Share On Community'),
                                 onPressed: () {
-                                  // TODO: Implement share to community
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          NextAreaPromptScreen(
+                                        onYes: () {
+                                          // TODO: Implement what happens when user presses Yes
+                                          Navigator.of(context).pop();
+                                        },
+                                        onNo: () {
+                                          // TODO: Implement what happens when user presses No
+                                          Navigator.of(context).pop();
+                                        },
+                                      ),
+                                    ),
+                                  );
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.white,
