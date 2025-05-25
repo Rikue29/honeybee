@@ -10,7 +10,7 @@ class AppTheme {
 
   static final ThemeData lightTheme = ThemeData(
     useMaterial3: true,
-    colorScheme: ColorScheme.light(
+    colorScheme: const ColorScheme.light(
       primary: _primaryColor,
       secondary: _secondaryColor,
       tertiary: _accentColor,
@@ -71,11 +71,11 @@ class AppTheme {
 
   static final ThemeData darkTheme = ThemeData(
     useMaterial3: true,
-    colorScheme: ColorScheme.dark(
+    colorScheme: const ColorScheme.dark(
       primary: _primaryColor,
       secondary: _secondaryColor,
       tertiary: _accentColor,
-      surface: const Color(0xFF2D2D2D),
+      surface: Color(0xFF2D2D2D),
       error: _errorColor,
     ),
     appBarTheme: const AppBarTheme(

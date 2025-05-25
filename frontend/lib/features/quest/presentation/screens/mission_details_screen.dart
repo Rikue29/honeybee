@@ -11,14 +11,14 @@ class MissionDetailsScreen extends StatefulWidget {
   // final String missionId; // If already fetched and passed
 
   const MissionDetailsScreen({
-    Key? key,
+    super.key,
     required this.questId,
     required this.locationId,
     required this.locationName,
     required this.latitude,
     required this.longitude,
     // required this.missionId,
-  }) : super(key: key);
+  });
 
   @override
   _MissionDetailsScreenState createState() => _MissionDetailsScreenState();
@@ -179,7 +179,7 @@ class _MissionDetailsScreenState extends State<MissionDetailsScreen> {
       appBar: AppBar(
         title: Text("Mission at ${widget.locationName}"),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
             Navigator.pop(context, false); // Indicate mission was not completed/backed out
           },
@@ -189,7 +189,7 @@ class _MissionDetailsScreenState extends State<MissionDetailsScreen> {
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: _isFetchingMissionId 
-            ? CircularProgressIndicator()
+            ? const CircularProgressIndicator()
             : _buildCurrentStepWidget(),
         ),
       ),
@@ -203,7 +203,7 @@ class _MissionDetailsScreenState extends State<MissionDetailsScreen> {
       return _buildAskQuestionsStep();
     }
     // Potentially more steps or a completion/error state
-    return Text("Mission complete or undefined step."); 
+    return const Text("Mission complete or undefined step."); 
   }
 
   Widget _buildFindGuideStep() {
@@ -223,22 +223,22 @@ class _MissionDetailsScreenState extends State<MissionDetailsScreen> {
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
         Text(
           findDescription,
           style: Theme.of(context).textTheme.titleMedium,
           textAlign: TextAlign.center,
         ),
-        SizedBox(height: 30),
+        const SizedBox(height: 30),
         ElevatedButton(
           onPressed: _advanceStep,
-          child: Text("Found Them!"),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.orange,
             foregroundColor: Colors.white,
-            padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-            textStyle: TextStyle(fontSize: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            textStyle: const TextStyle(fontSize: 16),
           ),
+          child: Text("Found Them!"),
         ),
       ],
     );
@@ -258,13 +258,13 @@ class _MissionDetailsScreenState extends State<MissionDetailsScreen> {
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
-        SizedBox(height: 30),
+        const SizedBox(height: 30),
         Text(
           "Are you ready to start the quiz?",
           style: Theme.of(context).textTheme.titleMedium,
           textAlign: TextAlign.center,
         ),
-        SizedBox(height: 20),
+        const SizedBox(height: 20),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -272,17 +272,17 @@ class _MissionDetailsScreenState extends State<MissionDetailsScreen> {
               onPressed: () {
                 Navigator.pop(context, false);
               },
-              child: Text("No, not yet"),
+              child: const Text("No, not yet"),
             ),
             ElevatedButton(
               onPressed: _startQuiz,
-              child: Text("Yes, let's go!"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                textStyle: TextStyle(fontSize: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                textStyle: const TextStyle(fontSize: 16),
               ),
+              child: Text("Yes, let's go!"),
             ),
           ],
         ),

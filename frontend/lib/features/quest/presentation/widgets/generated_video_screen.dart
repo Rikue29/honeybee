@@ -60,11 +60,11 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
       final isAvailable = await _checkVideoAvailability();
 
       if (!isAvailable) {
-        print('Video not available yet, waiting ${retryDelay} seconds...');
+        print('Video not available yet, waiting $retryDelay seconds...');
         setState(() {
           _isRetrying = true;
         });
-        await Future.delayed(Duration(seconds: retryDelay));
+        await Future.delayed(const Duration(seconds: retryDelay));
         _retryCount++;
         await _initializeVideo();
         return;
@@ -86,11 +86,11 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
       print('Error initializing video: $e');
       if (mounted) {
         if (_retryCount < maxRetries) {
-          print('Retrying in ${retryDelay} seconds...');
+          print('Retrying in $retryDelay seconds...');
           setState(() {
             _isRetrying = true;
           });
-          await Future.delayed(Duration(seconds: retryDelay));
+          await Future.delayed(const Duration(seconds: retryDelay));
           _retryCount++;
           await _initializeVideo();
         } else {
@@ -320,11 +320,11 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              Row(
+                              const Row(
                                 children: [
                                   Expanded(
                                       child: Divider(color: Color(0xFFEA8601))),
-                                  const Padding(
+                                  Padding(
                                     padding:
                                         EdgeInsets.symmetric(horizontal: 8.0),
                                     child: Text('or',
@@ -362,7 +362,7 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
                   ],
                 ),
               if (!_isInitialized && _errorMessage == null)
-                Container(
+                SizedBox(
                   height: 300,
                   child: Center(
                     child: Column(

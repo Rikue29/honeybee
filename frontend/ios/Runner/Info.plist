@@ -51,5 +51,11 @@
 	<string>This app needs access to location when in the background to track your movements and provide location-based features.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>This app needs access to location when open and in the background to track your movements and provide location-based features.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to take photos and videos for your journal.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs photo library access to select photos and videos for your journal.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs microphone access to record videos with sound for your journal.</string>
 </dict>
 </plist>

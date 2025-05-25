@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/video_card.dart';
 
 class VideoFeedPage extends StatefulWidget {
-  const VideoFeedPage({Key? key}) : super(key: key);
+  const VideoFeedPage({super.key});
 
   @override
   State<VideoFeedPage> createState() => _VideoFeedPageState();
@@ -141,7 +141,7 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
                   const SizedBox(width: 12),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
                           color: Colors.white,

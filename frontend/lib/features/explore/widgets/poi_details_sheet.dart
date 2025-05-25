@@ -16,7 +16,7 @@ class _POIDetailsSheetState extends State<POIDetailsSheet> {
   final _poiService = POIService();
   List<CommunityContent>? _communityContent;
   bool _isLoading = true;
-  Map<String, bool> _expandedSections = {
+  final Map<String, bool> _expandedSections = {
     'openingHours': false,
     'crowdDensity': false,
     'ticketPrices': false,

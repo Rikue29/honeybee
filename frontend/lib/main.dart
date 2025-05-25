@@ -18,16 +18,18 @@ void main() async {
 
     // Initialize Mapbox with access token
     final mapboxToken = dotenv.env['MAPBOX_ACCESS_TOKEN'];
-    if (mapboxToken == null)
+    if (mapboxToken == null) {
       throw Exception('MAPBOX_ACCESS_TOKEN not found in .env');
+    }
     MapboxOptions.setAccessToken(mapboxToken);
 
     // Initialize Supabase
     final supabaseUrl = dotenv.env['SUPABASE_URL'];
     final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
     if (supabaseUrl == null) throw Exception('SUPABASE_URL not found in .env');
-    if (supabaseAnonKey == null)
+    if (supabaseAnonKey == null) {
       throw Exception('SUPABASE_ANON_KEY not found in .env');
+    }
 
     await Supabase.initialize(
       url: supabaseUrl,
@@ -119,7 +121,7 @@ class HoneybeeApp extends StatelessWidget {
               areaName: 'Pekan',
               xpEarned: 450,
               questsCompleted: 3,
-              highlights: [
+              highlights: const [
                 QuestHighlight(
                   title: 'Sultan Abu Bakar Museum',
                   subtitle: 'Completed Royal Heritage Quest',

@@ -6,10 +6,10 @@ class VideoCard extends StatefulWidget {
   final bool isActive;
 
   const VideoCard({
-    Key? key,
+    super.key,
     required this.videoData,
     required this.isActive,
-  }) : super(key: key);
+  });
 
   @override
   State<VideoCard> createState() => _VideoCardState();
@@ -91,15 +91,15 @@ class _VideoCardState extends State<VideoCard> with WidgetsBindingObserver {
       children: [
         // Video Player or Loading/Error State
         if (_error != null)
-          Center(
+          const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 48),
-                const SizedBox(height: 12),
+                Icon(Icons.error_outline, color: Colors.white, size: 48),
+                SizedBox(height: 12),
                 Text(
                   'Failed to load video',
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.white),
                 ),
               ],
             ),

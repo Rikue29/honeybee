@@ -80,7 +80,7 @@ class _VideoGenerationLoadingScreenState
 
     // Update messages less frequently
     _messageTimer =
-        Timer.periodic(Duration(seconds: messageChangeInterval), (timer) {
+        Timer.periodic(const Duration(seconds: messageChangeInterval), (timer) {
       if (!mounted) {
         timer.cancel();
         return;

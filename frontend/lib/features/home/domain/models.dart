@@ -19,8 +19,9 @@ class UserProfile {
 
   // Helper to get progress for the XP bar (0.0 to 1.0)
   double get levelProgress {
-    if (xpToNextLevel <= totalXpForCurrentLevel)
+    if (xpToNextLevel <= totalXpForCurrentLevel) {
       return 1.0; // Should not happen if data is correct
+    }
     final currentLevelXp = currentXp - totalXpForCurrentLevel;
     final neededForLevel = xpToNextLevel - totalXpForCurrentLevel;
     if (neededForLevel == 0) return 1.0;
