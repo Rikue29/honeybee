@@ -12,6 +12,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'quiz_screen.dart';
+import 'mission_details_screen.dart';
 
 class QuestStartScreen extends StatefulWidget {
   final List<Location> locations;
@@ -148,129 +149,97 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
       if (!mounted) return;
       setState(() {}); // Ensure the widget is in a clean state
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showArrivalConfirmation();
+        _showArrivalPrompt();
       });
     });
   }
 
-  void _showArrivalConfirmation() {
+  void _showArrivalPrompt() {
     if (!mounted) return;
     
-    showDialog<void>(
+    showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext dialogContext) => WillPopScope(
-        onWillPop: () async => false,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/images/bee_quest.png',
-                height: 100,
-                width: 100,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/bee_quest.png',
+              height: 100,
+              width: 100,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Have you arrived at ${widget.locations[_currentLocationIndex].name}?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-              SizedBox(height: 16),
-              Text(
-                'You have arrived at ${_locations[_currentLocationIndex].name}!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+            ),
+            SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text('Not yet'),
                 ),
-              ),
-              SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: Text('Not yet'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      Navigator.pop(dialogContext);
-                      
-                      try {
-                        final supabase = Supabase.instance.client;
-                        final user = supabase.auth.currentUser;
-                        if (user == null) throw Exception('User not authenticated');
-                        
-                        // Get the location mission template
-                        final locationMission = await supabase
-                            .from('location_missions')
-                            .select()
-                            .eq('location_name', _locations[_currentLocationIndex].name)
-                            .single();
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(dialogContext);
+                    print("[QuestStartScreen] User clicked 'Yes' for location: ${widget.locations[_currentLocationIndex].name}");
+                    
+                    final currentLocation = _locations[_currentLocationIndex];
+                    final missionCompleted = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MissionDetailsScreen(
+                          questId: widget.questId,
+                          locationId: currentLocation.id,
+                          locationName: currentLocation.name,
+                          latitude: currentLocation.latitude,
+                          longitude: currentLocation.longitude,
+                        ),
+                        settings: const RouteSettings(name: 'MissionDetailsScreen'),
+                      ),
+                    );
 
-                        // Use a transaction to handle mission and progress
-                        final response = await supabase.rpc('handle_mission_start', params: {
-                          'p_location_id': _locations[_currentLocationIndex].id,
-                          'p_mission_type': locationMission['mission_type'],
-                          'p_title': locationMission['title'],
-                          'p_description': locationMission['description'],
-                          'p_points': locationMission['points'],
-                          'p_user_id': user.id
+                    print("[QuestStartScreen] Result from MissionDetailsScreen: $missionCompleted for location: ${widget.locations[_currentLocationIndex].name}");
+
+                    if (missionCompleted == true) {
+                      if (mounted) {
+                        print("[QuestStartScreen] Mission completed, advancing location index from $_currentLocationIndex");
+                        setState(() {
+                          _currentLocationIndex++;
                         });
+                        print("[QuestStartScreen] New location index: $_currentLocationIndex");
 
-                        if (response == null) {
-                          throw Exception('Failed to start mission');
+                        if (_currentLocationIndex < _locations.length) {
+                          _showNavigateToNextPrompt();
+                        } else {
+                          _showQuestCompleteDialog();
                         }
-
-                        final missionId = response['mission_id'];
-                        
-                        if (!mounted) return;
-
-                        // Start the quiz
-                        final score = await Navigator.push<int>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => QuizScreen(
-                              questId: widget.questId,
-                              locationId: _locations[_currentLocationIndex].id,
-                              missionId: missionId,
-                              locationName: _locations[_currentLocationIndex].name,
-                            ),
-                          ),
-                        );
-
-                        if (score != null && mounted) {
-                          setState(() {
-                            _currentLocationIndex++;
-                          });
-
-                          if (_currentLocationIndex < _locations.length) {
-                            _showNavigateToNextPrompt();
-                          } else {
-                            _showQuestCompleteDialog();
-                          }
-                        }
-                      } catch (e) {
-                        print('Error starting quiz: $e'); // Debug log
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Failed to start quiz: $e'),
-                            duration: Duration(seconds: 3),
-                          ),
-                        );
                       }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                    ),
-                    child: Text(
-                      'Start Quiz',
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    } else {
+                      print("[QuestStartScreen] Mission NOT completed or quiz not started from details.");
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
                   ),
-                ],
-              ),
-            ],
-          ),
+                  child: Text(
+                    'Yes',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     ).then((_) {
