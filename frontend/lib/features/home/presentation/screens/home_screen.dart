@@ -144,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.play_circle_outline),
-            label: 'Videos',
+            label: 'For You',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.explore),

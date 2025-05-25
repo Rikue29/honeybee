@@ -144,7 +144,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
 
   void _startArrivalSimulation() {
     print('Starting arrival simulation...'); // Debug log
-    Future.delayed(Duration(seconds: 6), () {
+    Future.delayed(Duration(seconds:4), () {
       print('Simulated arrival, showing confirmation...'); // Debug log
       if (!mounted) return;
       setState(() {}); // Ensure the widget is in a clean state
@@ -278,29 +278,35 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
               ),
             ),
             SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _openGoogleMapsNavigation(_locations[_currentLocationIndex]);
-                _startArrivalSimulation(); // Start the simulation for the next location
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.navigation, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(
-                    'Navigate using Google Maps',
-                    style: TextStyle(color: Colors.white),
+            Flexible(
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _openGoogleMapsNavigation(_locations[_currentLocationIndex]);
+                  _startArrivalSimulation(); // Start the simulation for the next location
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.navigation, color: Colors.white),
+                    SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Navigate using Google Maps',
+                        style: TextStyle(color: Colors.white),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

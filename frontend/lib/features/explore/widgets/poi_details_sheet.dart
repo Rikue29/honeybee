@@ -16,6 +16,12 @@ class _POIDetailsSheetState extends State<POIDetailsSheet> {
   final _poiService = POIService();
   List<CommunityContent>? _communityContent;
   bool _isLoading = true;
+  Map<String, bool> _expandedSections = {
+    'openingHours': false,
+    'crowdDensity': false,
+    'ticketPrices': false,
+    'bestTimeToVisit': false,
+  };
 
   @override
   void initState() {
@@ -36,6 +42,64 @@ class _POIDetailsSheetState extends State<POIDetailsSheet> {
       });
       // TODO: Handle error
     }
+  }
+
+  void _toggleSection(String section) {
+    setState(() {
+      _expandedSections[section] = !(_expandedSections[section] ?? false);
+    });
+  }
+
+  Widget _buildInfoRow({
+    required String section,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required Widget content,
+    Color? backgroundColor,
+  }) {
+    final isExpanded = _expandedSections[section] ?? false;
+    
+    return GestureDetector(
+      onTap: () => _toggleSection(section),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: backgroundColor ?? Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 18, color: iconColor),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: iconColor.withOpacity(0.9),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                  color: iconColor,
+                  size: 20,
+                ),
+              ],
+            ),
+            if (isExpanded) ...[
+              const SizedBox(height: 8),
+              Divider(color: iconColor.withOpacity(0.2)),
+              const SizedBox(height: 8),
+              content,
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildFacilityIcon(Facility facility) {
@@ -184,90 +248,58 @@ class _POIDetailsSheetState extends State<POIDetailsSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.access_time, size: 18, color: Colors.orange.shade700),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Opening Hours',
-                              style: TextStyle(
-                                color: Colors.orange.shade900,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              '${widget.poi.openingTime?.format(context)} - ${widget.poi.closingTime?.format(context)}',
-                              style: TextStyle(
-                                color: Colors.orange.shade800,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
+                      _buildInfoRow(
+                        section: 'openingHours',
+                        icon: Icons.access_time,
+                        iconColor: Colors.orange.shade700,
+                        backgroundColor: Colors.orange.shade50,
+                        title: 'Opening Hours',
+                        content: Text(
+                          '${widget.poi.openingTime?.format(context)} - ${widget.poi.closingTime?.format(context)}',
+                          style: TextStyle(
+                            color: Colors.orange.shade800,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
                       if (widget.poi.crowdDensity != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.people, size: 18, color: Colors.blue.shade700),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Crowd Density',
-                                style: TextStyle(
-                                  color: Colors.blue.shade900,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                widget.poi.crowdDensity!,
-                                style: TextStyle(
-                                  color: Colors.blue.shade800,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
+                        _buildInfoRow(
+                          section: 'crowdDensity',
+                          icon: Icons.people,
+                          iconColor: Colors.blue.shade700,
+                          backgroundColor: Colors.blue.shade50,
+                          title: 'Crowd Density',
+                          content: Text(
+                            widget.poi.crowdDensity!,
+                            style: TextStyle(
+                              color: Colors.blue.shade800,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 8),
                       ],
                       if (widget.poi.ticketPriceAdult != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
+                        _buildInfoRow(
+                          section: 'ticketPrices',
+                          icon: Icons.confirmation_number,
+                          iconColor: Colors.green.shade700,
+                          backgroundColor: Colors.green.shade50,
+                          title: 'Ticket Prices',
+                          content: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.confirmation_number, size: 18, color: Colors.green.shade700),
-                              const SizedBox(width: 8),
                               Text(
-                                'Ticket Prices',
+                                'Adults: RM ${widget.poi.ticketPriceAdult}',
                                 style: TextStyle(
-                                  color: Colors.green.shade900,
-                                  fontWeight: FontWeight.w500,
+                                  color: Colors.green.shade800,
                                   fontSize: 14,
                                 ),
                               ),
-                              const Spacer(),
+                              const SizedBox(height: 4),
                               Text(
-                                'Adults: RM ${widget.poi.ticketPriceAdult}, Children: RM ${widget.poi.ticketPriceChild}',
+                                'Children: RM ${widget.poi.ticketPriceChild}',
                                 style: TextStyle(
                                   color: Colors.green.shade800,
                                   fontSize: 14,
@@ -279,39 +311,18 @@ class _POIDetailsSheetState extends State<POIDetailsSheet> {
                         const SizedBox(height: 8),
                       ],
                       if (widget.poi.bestTimeToVisit != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.purple.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.schedule, size: 18, color: Colors.purple.shade700),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Best Time to Visit',
-                                      style: TextStyle(
-                                        color: Colors.purple.shade900,
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    Text(
-                                      widget.poi.bestTimeToVisit!,
-                                      style: TextStyle(
-                                        color: Colors.purple.shade800,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                        _buildInfoRow(
+                          section: 'bestTimeToVisit',
+                          icon: Icons.schedule,
+                          iconColor: Colors.purple.shade700,
+                          backgroundColor: Colors.purple.shade50,
+                          title: 'Best Time to Visit',
+                          content: Text(
+                            widget.poi.bestTimeToVisit!,
+                            style: TextStyle(
+                              color: Colors.purple.shade800,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),

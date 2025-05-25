@@ -111,7 +111,7 @@ class _VideoCardState extends State<VideoCard> {
           left: 0,
           right: 0,
           child: Container(
-            height: 400,
+            height: 300,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
@@ -127,7 +127,7 @@ class _VideoCardState extends State<VideoCard> {
 
         // User Info and Description
         Positioned(
-          bottom: 80,
+          bottom: 20,
           left: 16,
           right: 100,
           child: Column(
@@ -158,7 +158,7 @@ class _VideoCardState extends State<VideoCard> {
         // Right Side Buttons
         Positioned(
           right: 16,
-          bottom: 80,
+          bottom: 40,
           child: Column(
             children: [
               // Profile Picture
