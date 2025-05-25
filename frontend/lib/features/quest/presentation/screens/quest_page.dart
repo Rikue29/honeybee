@@ -161,7 +161,7 @@ class _QuestPageState extends State<QuestPage> {
             ),
           if (_showLoadingScreen)
             Container(
-              color: const Color(0xFFFFF8E1), // Light cream background
+              color: const Color(0xFFFFF8E1),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -180,7 +180,7 @@ class _QuestPageState extends State<QuestPage> {
                     Container(
                       width: 200,
                       child: const LinearProgressIndicator(
-                        backgroundColor: Color(0xFFFFE0B2), // Light orange color
+                        backgroundColor: Color(0xFFFFE0B2),
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
                         minHeight: 8,
                       ),
@@ -191,7 +191,7 @@ class _QuestPageState extends State<QuestPage> {
             )
           else if (_isQuestCreated)
             Container(
-              color: const Color(0xFFFFF8E1), // Light cream background
+              color: const Color(0xFFFFF8E1),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -223,36 +223,6 @@ class _QuestPageState extends State<QuestPage> {
             _buildCurrentStep(),
         ],
       ),
-      bottomNavigationBar: (!_showLoadingScreen && !_isQuestCreated) ? BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description),
-            label: 'Quest',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.explore),
-            label: 'Explore',
-          ),
-        ],
-        currentIndex: 1, // Quest tab is selected
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (Route<dynamic> route) => false,
-            );
-          } else if (index == 2) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const ExploreScreen()),
-              (Route<dynamic> route) => false,
-            );
-          }
-        },
-      ) : null,
     );
   }
 

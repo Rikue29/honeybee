@@ -59,7 +59,7 @@ dependencies:
   
   # Media & Storage
   image_picker: ^1.0.4
-  video_player: ^2.7.2
+  video_player: ^2.9.5
   path_provider: ^2.1.1
   
   # Utilities

@@ -41,7 +41,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
   bool _isMapInitialized = false;
   bool _isDisposed = false;
   List<Uint8List> _markerImages = [];
-  int _selectedIndex = 2;
 
   @override
   void initState() {
@@ -192,21 +191,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text(
-          'Explore Pekan',
-          style: TextStyle(
-            color: Colors.orange,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(
-          color: Colors.orange,
-        ),
-      ),
       body: Stack(
         children: [
           if (!_isMapInitialized)
@@ -249,42 +233,67 @@ class _ExploreScreenState extends State<ExploreScreen> {
               },
               styleUri: "mapbox://styles/mapbox/streets-v12",
             ),
+          // Title and Search Bar Container
           Positioned(
-            top: 8,
-            left: 16,
-            right: 16,
+            top: 0,
+            left: 0,
+            right: 0,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.only(top: 70, left: 20, right: 20, bottom: 20),
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(8),
+                color: const Color.fromRGBO(255, 255, 255, 1),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.orange.withOpacity(0.1),
-                    blurRadius: 8,
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.search,
-                    color: Colors.orange.shade600,
+                  const Text(
+                    'Explore Pekan',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search places in Pekan',
-                        border: InputBorder.none,
-                        hintStyle: TextStyle(
-                          color: Colors.orange.shade300,
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.search,
+                          color: Colors.orange.shade600,
                         ),
-                      ),
-                      style: TextStyle(
-                        color: Colors.orange.shade900,
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Search places in Pekan',
+                              border: InputBorder.none,
+                              hintStyle: TextStyle(
+                                color: Colors.grey[400],
+                              ),
+                            ),
+                            style: const TextStyle(
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -292,38 +301,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ),
           ),
         ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description),
-            label: 'Quest',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.explore),
-            label: 'Explore',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.orange,
-        unselectedItemColor: Colors.grey,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (Route<dynamic> route) => false,
-            );
-          } else if (index == 1) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const QuestPage()),
-              (Route<dynamic> route) => false,
-            );
-          }
-        },
       ),
     );
   }
