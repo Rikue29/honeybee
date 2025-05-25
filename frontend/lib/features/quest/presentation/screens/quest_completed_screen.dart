@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/journey_video_section.dart';
 import '../../domain/models/quest_highlight.dart';
+import '../../../rewards/presentation/screens/rewards_screen.dart';
 
 class QuestCompletedScreen extends StatelessWidget {
   final String areaName;
@@ -39,6 +40,17 @@ class QuestCompletedScreen extends StatelessWidget {
                 elevation: 0,
                 scrolledUnderElevation: 0,
                 actions: [
+                  IconButton(
+                    icon: const Icon(Icons.card_giftcard_rounded,
+                        color: Color(0xFFEA8601)),
+                    tooltip: 'Rewards',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (context) => const RewardsScreen()),
+                      );
+                    },
+                  ),
                   if (onLogout != null)
                     IconButton(
                       icon: const Icon(Icons.logout, color: Color(0xFFEA8601)),

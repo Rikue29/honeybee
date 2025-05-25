@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:honeybee/app.dart';
 import 'package:honeybee/core/services/location_service.dart';
 import 'package:honeybee/core/theme/app_theme.dart';
+import 'package:honeybee/features/quest/presentation/screens/quest_completed_screen.dart';
+import 'package:honeybee/features/quest/domain/models/quest_highlight.dart';
 
 void main() async {
   try {
@@ -112,6 +114,32 @@ class HoneybeeApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
       home: const AppRouter(),
+      routes: {
+        '/journey-completed': (context) => QuestCompletedScreen(
+              areaName: 'Pekan',
+              xpEarned: 450,
+              questsCompleted: 3,
+              highlights: [
+                QuestHighlight(
+                  title: 'Sultan Abu Bakar Museum',
+                  subtitle: 'Completed Royal Heritage Quest',
+                  imagePath: 'assets/images/museum_tour.png',
+                ),
+                QuestHighlight(
+                  title: 'Pekan Riverfront',
+                  subtitle: 'Mastered Local Cuisine Quest',
+                  imagePath: 'assets/images/location_waterfront.JPG',
+                ),
+                QuestHighlight(
+                  title: 'Istana Abu Bakar',
+                  subtitle: 'Mastered Local Cuisine Quest',
+                  imagePath: 'assets/images/istana_abubakar.png',
+                ),
+              ],
+              onContinue: () => Navigator.pop(context),
+              onGenerateVideo: () {},
+            ),
+      },
       debugShowCheckedModeBanner: false,
     );
   }
