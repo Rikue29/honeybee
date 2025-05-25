@@ -162,8 +162,7 @@ class _VideoGenerationLoadingScreenState
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'file_urls': urls,
-          'title_text':
-              'Journey With Amie', // Consider making this dynamic if needed
+          'title_text': 'Journey With Me',
           'duration': 3, // Consider making this dynamic
         }),
       );

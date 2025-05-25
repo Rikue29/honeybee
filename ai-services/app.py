@@ -42,19 +42,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def resize_and_pad(clip, target_size=(720, 1280)):
+def resize_and_pad(clip, portrait_size=(720, 1280), landscape_size=(1280, 720)):
+    # Determine original orientation
+    if hasattr(clip, 'img'):
+        ih, iw = clip.img.shape[:2]
+    else:
+        ih, iw = clip.size[1], clip.size[0]
+
+    # Choose target size based on orientation
+    if iw > ih:
+        target_size = landscape_size
+    else:
+        target_size = portrait_size
+
     w, h = target_size
 
     def make_blur_frame(get_frame, t):
         frame = get_frame(t)
         frame_cv = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        
-        # Check if the frame is landscape and needs rotation
-        ih, iw = frame.shape[:2]
-        if iw > ih:  # If width is greater than height (landscape)
-            frame_cv = cv2.rotate(frame_cv, cv2.ROTATE_90_CLOCKWISE)
-            ih, iw = iw, ih  # Swap dimensions after rotation
-        
         bg = cv2.resize(frame_cv, (w, h))
         bg = cv2.GaussianBlur(bg, (99, 99), 30)
         scale = min(w / iw, h / ih)
@@ -69,13 +74,6 @@ def resize_and_pad(clip, target_size=(720, 1280)):
         def make_blur_image():
             frame = clip.img
             frame_cv = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            
-            # Check if the image is landscape and needs rotation
-            ih, iw = frame.shape[:2]
-            if iw > ih:  # If width is greater than height (landscape)
-                frame_cv = cv2.rotate(frame_cv, cv2.ROTATE_90_CLOCKWISE)
-                ih, iw = iw, ih  # Swap dimensions after rotation
-            
             bg = cv2.resize(frame_cv, (w, h))
             bg = cv2.GaussianBlur(bg, (99, 99), 30)
             scale = min(w / iw, h / ih)
@@ -162,7 +160,6 @@ def upload_to_supabase(local_file_path, supabase_path):
 
 def generate_video(media_file_paths, duration=30, music_path='sound/default_music.mp3', title_text="My Journey"):
     try:
-        target_size = (720, 1280)  # Portrait for mobile
         clips = []
         temp_files_to_clean = []
 
@@ -184,7 +181,7 @@ def generate_video(media_file_paths, duration=30, music_path='sound/default_musi
             else:
                 continue
 
-            clip = resize_and_pad(clip, target_size)
+            clip = resize_and_pad(clip)
             clips.append(clip)
 
         if not clips:
@@ -192,7 +189,7 @@ def generate_video(media_file_paths, duration=30, music_path='sound/default_musi
 
         # Add title overlay to the first clip
         if title_text and clips:
-            clips[0] = create_title_overlay(clips[0], title_text, target_size)
+            clips[0] = create_title_overlay(clips[0], title_text, clips[0].size)
 
         final_clips = []
         for i, clip in enumerate(clips):
@@ -201,7 +198,7 @@ def generate_video(media_file_paths, duration=30, music_path='sound/default_musi
             final_clips.append(clip)
 
         # Add watermark at the end
-        watermark = create_watermark(target_size)
+        watermark = create_watermark(clips[0].size)
         if watermark:
             final_clips.append(watermark)
 
