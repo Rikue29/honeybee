@@ -165,14 +165,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 ...ongoingQuests
                     .map((quest) => _buildQuestCard(
                         quest, progressColor, tertiaryColor, backgroundColor))
-                    .toList(),
+                    ,
                 const SizedBox(height: 24),
                 _buildSectionTitle('Saved Quests', tertiaryColor),
                 const SizedBox(height: 12),
                 ...savedQuests
                     .map((quest) => _buildQuestCard(
                         quest, progressColor, tertiaryColor, backgroundColor))
-                    .toList(),
+                    ,
                 const SizedBox(height: 24),
                 _buildSectionTitle('Popular Locations', tertiaryColor),
                 const SizedBox(height: 16),
@@ -189,14 +189,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor =
-        const Color(0xFFFBC02D); // Main Yellow/Gold from image
-    final Color secondaryColor = const Color(0xFFFFF9C4); // Lighter Yellow
-    final Color tertiaryColor = const Color(0xFF795548); // Brown for text/icons
-    final Color backgroundColor =
-        const Color(0xFFFFFDE7); // Very light yellow background
-    final Color progressColor =
-        const Color(0xFFFF8F00); // Orange for progress bars
+    const Color primaryColor =
+        Color(0xFFFBC02D); // Main Yellow/Gold from image
+    const Color secondaryColor = Color(0xFFFFF9C4); // Lighter Yellow
+    const Color tertiaryColor = Color(0xFF795548); // Brown for text/icons
+    const Color backgroundColor =
+        Color(0xFFFFFDE7); // Very light yellow background
+    const Color progressColor =
+        Color(0xFFFF8F00); // Orange for progress bars
 
     final List<Widget> pages = [
       _buildHomePageView(
@@ -380,7 +380,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 44,
                       height: 44,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => Icon(
+                      errorBuilder: (context, error, stackTrace) => const Icon(
                           Icons.person,
                           size: 44,
                           color: Colors.white70), // Adjusted size

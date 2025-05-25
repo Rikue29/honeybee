@@ -112,15 +112,15 @@ class _RewardsScreenState extends State<RewardsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor =
-        const Color(0xFFF5A623); // Main orange color from image
-    final Color backgroundColor =
-        const Color(0xFFFFF3E0); // Light yellow background
-    final Color cardBackgroundColor = Colors.white;
+    const Color primaryColor =
+        Color(0xFFF5A623); // Main orange color from image
+    const Color backgroundColor =
+        Color(0xFFFFF3E0); // Light yellow background
+    const Color cardBackgroundColor = Colors.white;
     final Color chipSelectedColor = primaryColor;
     final Color chipUnselectedColor = Colors.grey[200]!;
-    final Color chipSelectedTextColor = Colors.white;
-    final Color chipUnselectedTextColor = Colors.black87;
+    const Color chipSelectedTextColor = Colors.white;
+    const Color chipUnselectedTextColor = Colors.black87;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -128,7 +128,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
         elevation: 0,
         backgroundColor: backgroundColor,
         centerTitle: true,
-        title: Text(
+        title: const Text(
           'Rewards',
           style: TextStyle(
               color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 20),
@@ -143,7 +143,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
                 const SizedBox(width: 4),
                 Text(
                   '$_userTokens Tokens',
-                  style: TextStyle(
+                  style: const TextStyle(
                       color: Colors.black87,
                       fontWeight: FontWeight.bold,
                       fontSize: 16),
@@ -153,7 +153,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
           ),
         ],
         iconTheme:
-            IconThemeData(color: Colors.black87), // For back button if needed
+            const IconThemeData(color: Colors.black87), // For back button if needed
       ),
       body: Column(
         children: [
@@ -328,7 +328,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
                         top: 8,
                         right: 8,
                         child: Container(
-                            padding: EdgeInsets.all(4),
+                            padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.4),
                                 borderRadius: BorderRadius.circular(6)),

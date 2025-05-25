@@ -20,11 +20,11 @@ class QuestStartScreen extends StatefulWidget {
   final String questId;
 
   const QuestStartScreen({
-    Key? key,
+    super.key,
     required this.locations,
     required this.city,
     required this.questId,
-  }) : super(key: key);
+  });
 
   @override
   State<QuestStartScreen> createState() => _QuestStartScreenState();
@@ -34,7 +34,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
   late List<Location> _locations;
   MapboxMap? mapboxMap;
   PointAnnotationManager? pointAnnotationManager;
-  List<Uint8List> _locationMarkerImages = [];
+  final List<Uint8List> _locationMarkerImages = [];
   Uint8List? _userMarkerImage;
   bool _isMapInitialized = false;
   bool _isDisposed = false;
@@ -144,7 +144,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
 
   void _startArrivalSimulation() {
     print('Starting arrival simulation...'); // Debug log
-    Future.delayed(Duration(seconds:4), () {
+    Future.delayed(const Duration(seconds:4), () {
       print('Simulated arrival, showing confirmation...'); // Debug log
       if (!mounted) return;
       setState(() {}); // Ensure the widget is in a clean state
@@ -172,22 +172,22 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
               height: 100,
               width: 100,
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               'Have you arrived at ${widget.locations[_currentLocationIndex].name}?',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: Text('Not yet'),
+                  child: const Text('Not yet'),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -232,7 +232,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                   ),
-                  child: Text(
+                  child: const Text(
                     'Yes',
                     style: TextStyle(color: Colors.white),
                   ),
@@ -268,8 +268,8 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
               height: 100,
               width: 100,
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               'Ready to head to the next location?',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -277,7 +277,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             Flexible(
               child: ElevatedButton(
                 onPressed: () {
@@ -287,12 +287,12 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange,
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -333,8 +333,8 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
               height: 100,
               width: 100,
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               'Congratulations! You\'ve completed the quest!',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -342,14 +342,14 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            Text(
+            const Text(
               'You\'ve earned 400 points!',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.orange,
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
@@ -357,12 +357,12 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(
+              child: const Text(
                 'Complete Quest',
                 style: TextStyle(color: Colors.white),
               ),
@@ -383,7 +383,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
     } else {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open Google Maps')),
+        const SnackBar(content: Text('Could not open Google Maps')),
       );
     }
   }
@@ -401,7 +401,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Quest in Progress'),
+        title: const Text('Quest in Progress'),
         automaticallyImplyLeading: false,
       ),
       body: Stack(
@@ -410,7 +410,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
             const Center(child: CircularProgressIndicator())
           else
             MapWidget(
-              key: ValueKey('activeQuestMap'),
+              key: const ValueKey('activeQuestMap'),
               onMapCreated: _onMapCreated,
               styleUri: "mapbox://styles/mapbox/streets-v12",
               cameraOptions: CameraOptions(
@@ -429,7 +429,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
             bottom: 16,
             left: 16,
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
@@ -437,18 +437,18 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
                     blurRadius: 10,
-                    offset: Offset(0, 2),
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.location_on, color: Colors.orange),
-                  SizedBox(width: 8),
+                  const Icon(Icons.location_on, color: Colors.orange),
+                  const SizedBox(width: 8),
                   Text(
                     'Location ${_currentLocationIndex + 1} of ${_locations.length}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -461,8 +461,8 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openGoogleMapsNavigation(_locations[_currentLocationIndex]),
         backgroundColor: Colors.orange,
-        icon: Icon(Icons.navigation, color: Colors.white),
-        label: Text('Navigate', style: TextStyle(color: Colors.white)),
+        icon: const Icon(Icons.navigation, color: Colors.white),
+        label: const Text('Navigate', style: TextStyle(color: Colors.white)),
       ),
     );
   }

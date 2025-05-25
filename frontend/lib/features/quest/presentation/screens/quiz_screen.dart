@@ -15,14 +15,14 @@ class QuizScreen extends StatefulWidget {
   final double longitude;
 
   const QuizScreen({
-    Key? key,
+    super.key,
     required this.questId,
     required this.locationId,
     required this.missionId,
     required this.locationName,
     required this.latitude,
     required this.longitude,
-  }) : super(key: key);
+  });
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -38,7 +38,7 @@ class _QuizScreenState extends State<QuizScreen> {
   int _timeLeft = 0; // Initialize, will be set in _initQuiz
   String? _userMissionProgressId;
   Timer? _timer;
-  List<QuestionResult> _quizResults = []; // To store results of each question
+  final List<QuestionResult> _quizResults = []; // To store results of each question
 
   @override
   void initState() {
@@ -121,7 +121,7 @@ class _QuizScreenState extends State<QuizScreen> {
         } else {
           // Handle no questions loaded scenario - perhaps navigate back or show message
            ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No questions found for this mission.')),
+            const SnackBar(content: Text('No questions found for this mission.')),
           );
           Navigator.pop(context); // Example: Go back if no questions
         }
@@ -427,7 +427,7 @@ class _QuizScreenState extends State<QuizScreen> {
                   ),
                   child: Text(
                     answer,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),

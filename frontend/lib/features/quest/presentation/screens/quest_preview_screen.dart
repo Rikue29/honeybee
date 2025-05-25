@@ -22,10 +22,10 @@ class QuestPreviewScreen extends StatefulWidget {
   String? questId;
 
   QuestPreviewScreen({
-    Key? key,
+    super.key,
     required this.locations,
     required this.city,
-  }) : super(key: key) {
+  }) {
     assert(locations.length == 4, 'A quest must have exactly 4 locations');
   }
 
@@ -38,7 +38,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
   MapboxMap? mapboxMap;
   PointAnnotationManager? pointAnnotationManager;
   bool _isSaving = false;
-  List<Uint8List> _locationMarkerImages = [];
+  final List<Uint8List> _locationMarkerImages = [];
   Uint8List? _userMarkerImage;
   bool _isMapInitialized = false;
   bool _isDisposed = false;
@@ -131,7 +131,9 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
 
   Future<void> _addMarkersToMap() async {
     if (mapboxMap == null || _locationMarkerImages.isEmpty || 
-        _userMarkerImage == null || _isDisposed) return;
+        _userMarkerImage == null || _isDisposed) {
+      return;
+    }
 
     try {
       // Create point annotation manager if it doesn't exist
@@ -343,7 +345,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to start quest: ${e.toString()}'),
-          duration: Duration(seconds: 5),
+          duration: const Duration(seconds: 5),
         ),
       );
     }
@@ -441,14 +443,14 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
     };
 
     // Create a source for the route
-    final sourceId = 'route-source';
+    const sourceId = 'route-source';
     await mapboxMap!.style.addSource(GeoJsonSource(
       id: sourceId,
       data: jsonEncode(routeGeoJson),
     ));
 
     // Create a line layer for the route with animation
-    final layerId = 'route-layer';
+    const layerId = 'route-layer';
     _routeLayer = LineLayer(
       id: layerId,
       sourceId: sourceId,
@@ -460,7 +462,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
 
     // Animate the route drawing
     double progress = 0;
-    Timer.periodic(Duration(milliseconds: 50), (timer) {
+    Timer.periodic(const Duration(milliseconds: 50), (timer) {
       progress += 0.02;
       if (progress >= 1) {
         timer.cancel();
@@ -512,10 +514,10 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
       appBar: AppBar(
         title: Text('Your Day in ${widget.city}'),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
             Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => QuestPage()),
+              MaterialPageRoute(builder: (context) => const QuestPage()),
               (Route<dynamic> route) => false,
             );
           },
@@ -527,7 +529,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
             const Center(child: CircularProgressIndicator())
           else
             MapWidget(
-              key: ValueKey('previewMap'),
+              key: const ValueKey('previewMap'),
               onMapCreated: _onMapCreated,
               styleUri: "mapbox://styles/mapbox/streets-v12",
               cameraOptions: CameraOptions(
@@ -550,12 +552,12 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
               return Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.1),
                       blurRadius: 10,
-                      offset: Offset(0, -2),
+                      offset: const Offset(0, -2),
                     ),
                   ],
                 ),
@@ -563,7 +565,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
                   children: [
                     // Handle bar
                     Container(
-                      margin: EdgeInsets.symmetric(vertical: 12),
+                      margin: const EdgeInsets.symmetric(vertical: 12),
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
@@ -573,7 +575,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
                     ),
                     Expanded(
                       child: ReorderableListView.builder(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         scrollController: scrollController,
                         itemCount: _locations.length,
                         onReorder: (oldIndex, newIndex) {
@@ -594,16 +596,16 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
                             background: Container(
                               color: Colors.red,
                               alignment: Alignment.centerRight,
-                              padding: EdgeInsets.only(right: 16),
-                              child: Icon(Icons.delete, color: Colors.white),
+                              padding: const EdgeInsets.only(right: 16),
+                              child: const Icon(Icons.delete, color: Colors.white),
                             ),
                             onDismissed: (direction) => _removeLocation(index),
                             child: Card(
-                              margin: EdgeInsets.symmetric(vertical: 4),
+                              margin: const EdgeInsets.symmetric(vertical: 4),
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  child: Text('${index + 1}'),
                                   backgroundColor: Colors.orange,
+                                  child: Text('${index + 1}'),
                                 ),
                                 title: Text(location.name),
                                 subtitle: Column(
@@ -617,7 +619,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
                                     ),
                                   ],
                                 ),
-                                trailing: Icon(Icons.drag_handle),
+                                trailing: const Icon(Icons.drag_handle),
                               ),
                             ),
                           );
@@ -633,7 +635,7 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
           if (_isSaving)
             Container(
               color: Colors.black54,
-              child: Center(
+              child: const Center(
                 child: CircularProgressIndicator(),
               ),
             ),
@@ -649,9 +651,9 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
                   onPressed: _isSaving ? null : _startQuest,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Start Quest',
                     style: TextStyle(
                       color: Colors.white,
@@ -661,15 +663,15 @@ class _QuestPreviewScreenState extends State<QuestPreviewScreen> {
                   ),
                 ),
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: OutlinedButton(
                   onPressed: _isSaving ? null : _saveQuest,
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.orange),
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(color: Colors.orange),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Save Quest',
                     style: TextStyle(
                       color: Colors.orange,

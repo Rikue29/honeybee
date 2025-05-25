@@ -1,4 +1,3 @@
-import 'package:honeybee/features/explore/services/poi_service.dart';
 
 class CommunityContent {
   final String id;

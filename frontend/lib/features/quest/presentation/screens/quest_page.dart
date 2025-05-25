@@ -10,7 +10,7 @@ import 'package:honeybee/features/explore/screens/explore_screen.dart';
 import 'package:provider/provider.dart';
 
 class QuestPage extends StatefulWidget {
-  const QuestPage({Key? key}) : super(key: key);
+  const QuestPage({super.key});
 
   @override
   _QuestPageState createState() => _QuestPageState();
@@ -177,7 +177,7 @@ class _QuestPageState extends State<QuestPage> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    Container(
+                    SizedBox(
                       width: 200,
                       child: const LinearProgressIndicator(
                         backgroundColor: Color(0xFFFFE0B2),
@@ -299,18 +299,18 @@ class _QuestPageState extends State<QuestPage> {
       right: 0,
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.emoji_events, color: Colors.orange, size: 24),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.emoji_events, color: Colors.orange, size: 24),
+                SizedBox(width: 8),
+                Text(
                   'Your Adventure',
                   style: TextStyle(
                     fontSize: 20,
@@ -320,11 +320,11 @@ class _QuestPageState extends State<QuestPage> {
               ],
             ),
             const SizedBox(height: 20),
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.location_on, color: Colors.orange, size: 24),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.location_on, color: Colors.orange, size: 24),
+                SizedBox(width: 8),
+                Text(
                   'Where are you going?',
                   style: TextStyle(fontSize: 16),
                 ),
@@ -471,9 +471,9 @@ class _QuestPageState extends State<QuestPage> {
       right: 0,
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -574,18 +574,18 @@ class _QuestPageState extends State<QuestPage> {
       right: 0,
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.interests),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.interests),
+                SizedBox(width: 8),
+                Text(
                   'Interests',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -689,18 +689,18 @@ class _QuestPageState extends State<QuestPage> {
       right: 0,
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.restaurant_menu),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.restaurant_menu),
+                SizedBox(width: 8),
+                Text(
                   'Cuisine',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
@@ -853,19 +853,19 @@ class _QuestPageState extends State<QuestPage> {
       right: 0,
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.emoji_events, color: Colors.orange, size: 24),
-                const SizedBox(width: 8),
-                const Text(
+                Icon(Icons.emoji_events, color: Colors.orange, size: 24),
+                SizedBox(width: 8),
+                Text(
                   'Your Quest Overview',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),

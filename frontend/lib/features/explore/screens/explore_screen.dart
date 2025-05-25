@@ -37,7 +37,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   final _poiService = POIService();
   List<POI>? _pois;
   PointAnnotationManager? _pointAnnotationManager;
-  Map<String, PointAnnotation> _annotations = {};
+  final Map<String, PointAnnotation> _annotations = {};
   bool _isMapInitialized = false;
   bool _isDisposed = false;
   List<Uint8List> _markerImages = [];

@@ -27,7 +27,7 @@ class QuizSummaryScreen extends StatefulWidget {
   final double longitude;
 
   const QuizSummaryScreen({
-    Key? key,
+    super.key,
     required this.quizResults,
     required this.totalScore,
     required this.questId,
@@ -35,7 +35,7 @@ class QuizSummaryScreen extends StatefulWidget {
     required this.missionId,
     required this.latitude,
     required this.longitude,
-  }) : super(key: key);
+  });
 
   @override
   _QuizSummaryScreenState createState() => _QuizSummaryScreenState();
@@ -44,7 +44,7 @@ class QuizSummaryScreen extends StatefulWidget {
 class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
   final ImagePicker _picker = ImagePicker();
   final PlacesService _placesService = PlacesService();
-  List<MediaItem> _mediaItems = []; // New: List to store multiple media items
+  final List<MediaItem> _mediaItems = []; // New: List to store multiple media items
   bool _isUploading = false;
   List<Place> _nearbyPlaces = [];
   bool _isLoadingPlaces = false;
@@ -278,7 +278,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
       print("[QuizSummaryScreen] Error details: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text("Error uploading media. Please try again."),
             backgroundColor: Colors.red,
           ),
@@ -318,7 +318,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
               width: 100,
             ),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               'Ready to head to the next location?',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -331,7 +331,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
               Text(
                 'Recommended: ${_nearbyPlaces[0].name}',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   color: Colors.orange,
                 ),
@@ -357,10 +357,10 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
-                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      minimumSize: Size(200, 45),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      minimumSize: const Size(200, 45),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.navigation, color: Colors.white, size: 18),
@@ -380,10 +380,10 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    minimumSize: Size(200, 45),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    minimumSize: const Size(200, 45),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Continue Quest',
                     style: TextStyle(color: Colors.white),
                   ),
@@ -394,11 +394,11 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                     Navigator.pop(dialogContext);
                     _showPauseDialog();
                   },
-                  icon: Icon(Icons.coffee, size: 18),
-                  label: Text('Take a Break'),
+                  icon: const Icon(Icons.coffee, size: 18),
+                  label: const Text('Take a Break'),
                   style: TextButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    minimumSize: Size(200, 45),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    minimumSize: const Size(200, 45),
                   ),
                 ),
               ],
@@ -421,13 +421,13 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
+              const Icon(
                 Icons.pause_circle_filled,
                 size: 100,
                 color: Colors.white,
               ),
               const SizedBox(height: 24),
-              Text(
+              const Text(
                 'Quest Paused',
                 style: TextStyle(
                   color: Colors.white,
@@ -442,13 +442,13 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                   Navigator.pop(dialogContext);
                   _showNearbyPlacesDialog();
                 },
-                icon: Icon(Icons.play_arrow),
-                label: Text('Resume Quest'),
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Resume Quest'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                  textStyle: TextStyle(fontSize: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  textStyle: const TextStyle(fontSize: 18),
                 ),
               ),
             ],
@@ -475,7 +475,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
               width: 100,
             ),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               'You have 1 token!',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -516,7 +516,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'Free Parking Coupon',
                               style: TextStyle(
                                 fontSize: 18,
@@ -555,7 +555,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                     onPressed: () {
                       Navigator.pop(dialogContext);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
+                        const SnackBar(
                           content: Row(
                             children: [
                               Icon(Icons.check_circle, color: Colors.white),
@@ -571,9 +571,9 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
-                      padding: EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    child: Text(
+                    child: const Text(
                       'Redeem Now',
                       style: TextStyle(color: Colors.white),
                     ),
@@ -588,10 +588,10 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
-                      side: BorderSide(color: Colors.orange),
-                      padding: EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: Colors.orange),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    child: Text(
+                    child: const Text(
                       'Redeem Later',
                       style: TextStyle(color: Colors.orange),
                     ),
@@ -668,7 +668,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
         ),
         const SizedBox(height: 15),
         if (_mediaItems.isNotEmpty) ...[
-          Container(
+          SizedBox(
             height: 120,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
@@ -679,7 +679,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                   children: [
                     Container(
                       width: 120,
-                      margin: EdgeInsets.only(right: 8),
+                      margin: const EdgeInsets.only(right: 8),
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey.shade300),
                         borderRadius: BorderRadius.circular(8),
@@ -689,7 +689,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                         child: mediaItem.isVideo
                             ? (mediaItem.controller?.value.isInitialized ?? false)
                                 ? VideoPlayer(mediaItem.controller!)
-                                : Center(child: Icon(Icons.videocam))
+                                : const Center(child: Icon(Icons.videocam))
                             : Image.file(
                                 File(mediaItem.file.path),
                                 fit: BoxFit.cover,
@@ -702,12 +702,12 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                       child: GestureDetector(
                         onTap: () => _removeMedia(index),
                         child: Container(
-                          padding: EdgeInsets.all(2),
-                          decoration: BoxDecoration(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
                             color: Colors.red,
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(Icons.close, color: Colors.white, size: 16),
+                          child: const Icon(Icons.close, color: Colors.white, size: 16),
                         ),
                       ),
                     ),
