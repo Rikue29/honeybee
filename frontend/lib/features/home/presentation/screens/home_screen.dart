@@ -5,6 +5,73 @@ import 'package:honeybee/features/quest/presentation/screens/quest_page.dart';
 import 'package:honeybee/features/explore/screens/explore_screen.dart';
 import 'package:honeybee/features/video_feed/pages/video_feed_page.dart';
 
+// Placeholder classes based on usage
+class UserProfile {
+  final String username;
+  final String avatarUrl;
+  final String title;
+  final int currentXp;
+  final int currentLevel;
+  final int totalXpForCurrentLevel;
+  final int xpToNextLevel;
+
+  UserProfile({
+    required this.username,
+    required this.avatarUrl,
+    required this.title,
+    required this.currentXp,
+    required this.currentLevel,
+    required this.totalXpForCurrentLevel,
+    required this.xpToNextLevel,
+  });
+
+  double get levelProgress => (xpToNextLevel - totalXpForCurrentLevel == 0)
+      ? 0
+      : (currentXp - totalXpForCurrentLevel) /
+          (xpToNextLevel - totalXpForCurrentLevel);
+}
+
+class QuestInfo {
+  final String id;
+  final String title;
+  final String subtitle;
+  final String iconAssetPath;
+  final int currentPoints;
+  final int totalPoints;
+
+  QuestInfo({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.iconAssetPath,
+    required this.currentPoints,
+    required this.totalPoints,
+  });
+
+  double get progress => totalPoints == 0 ? 0 : currentPoints / totalPoints;
+}
+
+class PopularLocation {
+  final String id;
+  final String name;
+  final String imagePath;
+
+  PopularLocation(
+      {required this.id, required this.name, required this.imagePath});
+}
+
+class RewardsScreen extends StatelessWidget {
+  const RewardsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Rewards')),
+      body: const Center(child: Text('Rewards Screen Content')),
+    );
+  }
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -13,6 +80,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+  late LocationService _locationService;
+
   // Dummy Data for the new UI - this remains
   final UserProfile _user = UserProfile(
     username: 'MERLIN',
@@ -60,6 +130,64 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _locationService = LocationService();
+  }
+
+  Widget _buildHomePageView(
+      UserProfile user,
+      List<QuestInfo> ongoingQuests,
+      List<QuestInfo> savedQuests,
+      List<PopularLocation> popularLocations,
+      Color primaryColor,
+      Color secondaryColor,
+      Color tertiaryColor,
+      Color backgroundColor,
+      Color progressColor) {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(0),
+        children: [
+          _buildTopBar(
+              tertiaryColor), // This is the custom header for this page
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                _buildUserProfileCard(user, primaryColor, secondaryColor,
+                    tertiaryColor, progressColor),
+                const SizedBox(height: 24),
+                _buildSectionTitle('Ongoing Quests', tertiaryColor),
+                const SizedBox(height: 12),
+                ...ongoingQuests
+                    .map((quest) => _buildQuestCard(
+                        quest, progressColor, tertiaryColor, backgroundColor))
+                    .toList(),
+                const SizedBox(height: 24),
+                _buildSectionTitle('Saved Quests', tertiaryColor),
+                const SizedBox(height: 12),
+                ...savedQuests
+                    .map((quest) => _buildQuestCard(
+                        quest, progressColor, tertiaryColor, backgroundColor))
+                    .toList(),
+                const SizedBox(height: 24),
+                _buildSectionTitle('Popular Locations', tertiaryColor),
+                const SizedBox(height: 16),
+                _buildPopularLocationsList(popularLocations, tertiaryColor),
+                const SizedBox(
+                    height: 30), // Space for bottom nav bar if added later
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final Color primaryColor =
         const Color(0xFFFBC02D); // Main Yellow/Gold from image
@@ -71,55 +199,95 @@ class _HomeScreenState extends State<HomeScreen> {
         const Color(0xFFFF8F00); // Orange for progress bars
 
     final List<Widget> pages = [
-      _buildQuestsPage(),
-      const QuestPage(),
+      _buildHomePageView(
+          _user,
+          _ongoingQuests,
+          _savedQuests,
+          _popularLocations,
+          primaryColor,
+          secondaryColor,
+          tertiaryColor,
+          backgroundColor,
+          progressColor),
+      const QuestPage(), // For creating/viewing quests
       const VideoFeedPage(),
       const ExploreScreen(),
     ];
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: SafeArea(
-        child: ListView(
-          // Using ListView for overall scrollability
-          padding: const EdgeInsets.all(0), // No padding for ListView itself
-          children: [
-            _buildTopBar(tertiaryColor),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  _buildUserProfileCard(_user, primaryColor, secondaryColor,
-                      tertiaryColor, progressColor),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle('Ongoing Quests', tertiaryColor),
-                  const SizedBox(height: 12),
-                  ..._ongoingQuests
-                      .map((quest) => _buildQuestCard(
-                          quest, progressColor, tertiaryColor, backgroundColor))
-                      .toList(),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle('Saved Quests', tertiaryColor),
-                  const SizedBox(height: 12),
-                  ..._savedQuests
-                      .map((quest) => _buildQuestCard(
-                          quest, progressColor, tertiaryColor, backgroundColor))
-                      .toList(),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle('Popular Locations', tertiaryColor),
-                  const SizedBox(height: 16),
-                  _buildPopularLocationsList(_popularLocations, tertiaryColor),
-                  const SizedBox(
-                      height: 30), // Space for bottom nav bar if added later
-                ],
-              ),
-            ),
-          ],
-        ),
+      appBar: _selectedIndex == 0
+          ? AppBar(
+              backgroundColor: Colors.white,
+              elevation: 1,
+              title: const Text('Honeybee',
+                  style: TextStyle(
+                      color: Color(0xFF795548), fontWeight: FontWeight.bold)),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.logout, color: Color(0xFF795548)),
+                  onPressed: () async {
+                    await Supabase.instance.client.auth.signOut();
+                  },
+                  tooltip: 'Logout',
+                ),
+              ],
+            )
+          : null,
+      body: Stack(
+        children: [
+          Visibility(
+            visible: _selectedIndex == 0,
+            maintainState: true,
+            child: pages[0],
+          ),
+          Visibility(
+            visible: _selectedIndex == 1,
+            maintainState: false, // Don't maintain state for Quest page
+            child: pages[1],
+          ),
+          Visibility(
+            visible: _selectedIndex == 2,
+            maintainState:
+                false, // Don't maintain state for Video Feed to prevent background playback
+            child: pages[2],
+          ),
+          Visibility(
+            visible: _selectedIndex == 3,
+            maintainState: true,
+            child: pages[3],
+          ),
+        ],
       ),
-      // BottomNavigationBar would be added here if implementing full navigation
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: tertiaryColor,
+        unselectedItemColor: tertiaryColor.withOpacity(0.6),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_filled),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.flag_outlined),
+            label: 'Quest',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.play_circle_filled_outlined),
+            label: 'For You',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.explore_outlined),
+            label: 'Explore',
+          ),
+        ],
+      ),
     );
   }
 
@@ -169,15 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 tooltip: 'Notifications',
               ),
             ],
-      appBar: _selectedIndex == 0 ? AppBar(
-        title: const Text('Honeybee'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await Supabase.instance.client.auth.signOut();
-            },
-          ),
+          )
         ],
       ),
     );
@@ -191,8 +351,11 @@ class _HomeScreenState extends State<HomeScreen> {
       color: null, // Use gradient instead
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
+        decoration: BoxDecoration(
+          // BoxDecoration should be applied to Container, not Card directly if it has gradient.
+          borderRadius: BorderRadius.circular(
+              12.0), // Ensure this matches card shape for clipping
+          gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
@@ -217,8 +380,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 44,
                       height: 44,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Icon(Icons.person, size: 28, color: Colors.white70),
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                          Icons.person,
+                          size: 44,
+                          color: Colors.white70), // Adjusted size
                     ),
                   ),
                   Expanded(
@@ -297,7 +462,8 @@ class _HomeScreenState extends State<HomeScreen> {
               Center(
                 child: TextButton(
                   onPressed: () {
-                    Navigator.pushNamed(context, '/journey-completed');
+                    // TODO: Implement or remove test navigation
+                    // Navigator.pushNamed(context, '/journey-completed');
                   },
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white,
@@ -454,148 +620,6 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
-      ) : null,
-      body: pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.flag),
-            label: 'Quest',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.play_circle_outline),
-            label: 'For You',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.explore),
-            label: 'Explore',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuestsPage() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error != null) {
-      return Center(child: Text(_error!));
-    }
-    if (_quests.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/images/bee-helper.png',
-              height: 120,
-              width: 120,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No quests yet!',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Start a new quest to begin your adventure',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const QuestPage(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Start New Quest'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _quests.length,
-      itemBuilder: (context, index) {
-        final quest = _quests[index];
-        final locations = List<Map<String, dynamic>>.from(quest['quest_locations'] ?? []);
-        final completedLocations = locations.where((loc) => loc['visited_at'] != null).length;
-        
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Column(
-            children: [
-              ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.orange,
-                  child: Icon(
-                    quest['status'] == 'completed' ? Icons.check : Icons.flag,
-                    color: Colors.white,
-                  ),
-                ),
-                title: Text(quest['title'] ?? 'Untitled Quest'),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(quest['description'] ?? ''),
-                    Text(
-                      'City: ${quest['city']}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${quest['total_points'] ?? 0} pts',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '$completedLocations/${locations.length}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const QuestPage(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 

@@ -15,7 +15,7 @@ class VideoCard extends StatefulWidget {
   State<VideoCard> createState() => _VideoCardState();
 }
 
-class _VideoCardState extends State<VideoCard> {
+class _VideoCardState extends State<VideoCard> with WidgetsBindingObserver {
   late VideoPlayerController _controller;
   bool _isPlaying = true;
   bool _isInitialized = false;
@@ -24,12 +24,21 @@ class _VideoCardState extends State<VideoCard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeVideo();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _controller.pause();
+    }
   }
 
   Future<void> _initializeVideo() async {
     try {
-      _controller = VideoPlayerController.network(widget.videoData['videoUrl']!);
+      _controller =
+          VideoPlayerController.network(widget.videoData['videoUrl']!);
       await _controller.initialize();
       if (mounted) {
         setState(() {
@@ -38,6 +47,8 @@ class _VideoCardState extends State<VideoCard> {
         if (widget.isActive) {
           _controller.play();
           _controller.setLooping(true);
+        } else {
+          _controller.pause();
         }
       }
     } catch (e) {
@@ -56,14 +67,19 @@ class _VideoCardState extends State<VideoCard> {
       if (widget.isActive) {
         _controller.play();
         _controller.setLooping(true);
+        _isPlaying = true;
       } else {
         _controller.pause();
+        _isPlaying = false;
       }
+      setState(() {});
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _controller.pause();
     _controller.dispose();
     super.dispose();
   }
@@ -175,7 +191,7 @@ class _VideoCardState extends State<VideoCard> {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Like Button
               Column(
                 children: [
@@ -191,7 +207,7 @@ class _VideoCardState extends State<VideoCard> {
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // Comment Button
               const Column(
                 children: [
@@ -207,7 +223,7 @@ class _VideoCardState extends State<VideoCard> {
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // Share Button
               const Column(
                 children: [
@@ -228,4 +244,4 @@ class _VideoCardState extends State<VideoCard> {
       ],
     );
   }
-} 
+}
