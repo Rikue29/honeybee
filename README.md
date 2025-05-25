@@ -119,3 +119,68 @@ docker-compose up
 ## 📄 License
 
 MIT License - see LICENSE file for details
+
+# Honeybee Travel App
+
+A Flutter application that generates personalized travel itineraries for Pekan, Pahang using AI.
+
+## Setup Instructions
+
+1. Install Flutter and set up your development environment following the [official Flutter documentation](https://flutter.dev/docs/get-started/install).
+
+2. Clone this repository:
+```bash
+git clone https://github.com/yourusername/honeybee.git
+cd honeybee
+```
+
+3. Get a Mapbox access token:
+   - Sign up for a Mapbox account at [mapbox.com](https://www.mapbox.com)
+   - Create a new access token with the following scopes:
+     - styles:read
+     - styles:tiles
+     - fonts:read
+     - datasets:read
+
+4. Create a `.env` file in the `frontend` directory with your Mapbox access token:
+```bash
+cd frontend
+echo "MAPBOX_ACCESS_TOKEN=your_mapbox_access_token_here" > .env
+```
+
+5. Install dependencies:
+```bash
+flutter pub get
+```
+
+6. Replace placeholder images in `frontend/assets/images/` with actual images:
+   - `bee_icon.png`: The app's main icon
+   - `bee_quest.png`: Quest-related icon
+   - `pekan_thumbnail.png`: Thumbnail image for Pekan
+
+7. Run the app:
+```bash
+flutter run
+```
+
+## Features
+
+- Interactive map interface using Mapbox
+- Customizable travel preferences:
+  - Trip duration
+  - Interests (Historical Sites, Nature, Local Culture, etc.)
+  - Cuisine preferences
+- AI-powered itinerary generation
+- Focus on Pekan, Pahang destinations
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
