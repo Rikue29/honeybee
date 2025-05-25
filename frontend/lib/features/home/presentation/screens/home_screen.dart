@@ -4,6 +4,7 @@ import 'package:honeybee/core/services/location_service.dart';
 import 'package:honeybee/features/quest/presentation/screens/quest_page.dart';
 import 'package:honeybee/features/explore/screens/explore_screen.dart';
 import 'package:honeybee/features/video_feed/pages/video_feed_page.dart';
+import 'package:honeybee/features/rewards/presentation/screens/rewards_screen.dart';
 
 // Placeholder classes based on usage
 class UserProfile {
@@ -58,18 +59,6 @@ class PopularLocation {
 
   PopularLocation(
       {required this.id, required this.name, required this.imagePath});
-}
-
-class RewardsScreen extends StatelessWidget {
-  const RewardsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('My Rewards')),
-      body: const Center(child: Text('Rewards Screen Content')),
-    );
-  }
 }
 
 class HomeScreen extends StatefulWidget {
@@ -216,24 +205,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      appBar: _selectedIndex == 0
-          ? AppBar(
-              backgroundColor: Colors.white,
-              elevation: 1,
-              title: const Text('Honeybee',
-                  style: TextStyle(
-                      color: Color(0xFF795548), fontWeight: FontWeight.bold)),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.logout, color: Color(0xFF795548)),
-                  onPressed: () async {
-                    await Supabase.instance.client.auth.signOut();
-                  },
-                  tooltip: 'Logout',
-                ),
-              ],
-            )
-          : null,
       body: Stack(
         children: [
           Visibility(
@@ -293,7 +264,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTopBar(Color iconColor) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -335,6 +306,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: iconColor, size: 28),
                 onPressed: () {/* TODO: Notification action */},
                 tooltip: 'Notifications',
+              ),
+              const SizedBox(width: 0),
+              IconButton(
+                icon: Icon(Icons.logout_rounded, color: iconColor, size: 28),
+                onPressed: () async {
+                  await Supabase.instance.client.auth.signOut();
+                },
+                tooltip: 'Logout',
               ),
             ],
           )
