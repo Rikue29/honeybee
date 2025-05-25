@@ -9,6 +9,9 @@ class LocationService {
   int _errorCount = 0;
   static const int _maxErrorRetries = 3;
   static const Duration _retryDelay = Duration(seconds: 2);
+  Position? _currentLocation;
+
+  Position? get currentLocation => _currentLocation;
 
   LocationService() {
     _initStreamController();
@@ -26,8 +29,36 @@ class LocationService {
   }
 
   Future<void> initialize() async {
-    // Initialize location service
-    await Geolocator.requestPermission();
+    await _checkPermission();
+    await _getCurrentLocation();
+  }
+
+  Future<void> _checkPermission() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception('Location services are disabled.');
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception('Location permissions are denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception(
+          'Location permissions are permanently denied, we cannot request permissions.');
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      _currentLocation = await Geolocator.getCurrentPosition();
+    } catch (e) {
+      print('Error getting location: $e');
+    }
   }
 
   Future<Position?> getCurrentLocation() async {
@@ -121,7 +152,7 @@ class LocationService {
     }
   }
 
-  void stopTracking() {
+  Future<void> stopTracking() async {
     if (!_isTracking) return;
 
     _isTracking = false;

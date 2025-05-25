@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:honeybee/core/services/location_service.dart';
 import 'package:honeybee/features/quest/presentation/screens/quest_page.dart';
+import 'package:honeybee/features/explore/screens/explore_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -263,7 +264,10 @@ class _HomeScreenState extends State<HomeScreen> {
               );
               break;
             case 2: // Explore
-              // TODO: Implement explore screen navigation
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ExploreScreen()),
+              );
               break;
           }
         },

@@ -6,6 +6,7 @@ import 'quest_preview_screen.dart';
 import 'package:honeybee/features/home/presentation/screens/home_screen.dart';
 import 'package:honeybee/core/services/location_service.dart';
 import 'package:honeybee/core/services/geocoding_service.dart';
+import 'package:honeybee/features/explore/screens/explore_screen.dart';
 import 'package:provider/provider.dart';
 
 class QuestPage extends StatefulWidget {
@@ -245,7 +246,10 @@ class _QuestPageState extends State<QuestPage> {
               (Route<dynamic> route) => false,
             );
           } else if (index == 2) {
-            // TODO: Navigate to explore screen
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => const ExploreScreen()),
+              (Route<dynamic> route) => false,
+            );
           }
         },
       ) : null,
