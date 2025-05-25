@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:honeybee/features/home/domain/models.dart';
+import 'package:honeybee/features/rewards/presentation/screens/rewards_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -253,7 +254,13 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 18),
               Center(
                 child: ElevatedButton(
-                  onPressed: () {/* TODO: My Rewards action */},
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const RewardsScreen(),
+                      ),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF8D5A00),
