@@ -462,8 +462,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Center(
                 child: TextButton(
                   onPressed: () {
-                    // TODO: Implement or remove test navigation
-                    // Navigator.pushNamed(context, '/journey-completed');
+                    Navigator.pushNamed(context, '/journey-completed');
                   },
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white,
@@ -473,7 +472,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: TextDecoration.underline,
                     ),
                   ),
-                  child: const Text('Test: Go to Journey Completed'),
+                  child: const Text('Go to Quest Completed'),
                 ),
               ),
             ],
