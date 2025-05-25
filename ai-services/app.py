@@ -42,50 +42,128 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def resize_and_pad(clip, portrait_size=(720, 1280), landscape_size=(1280, 720)):
-    # Determine original orientation
-    if hasattr(clip, 'img'):
-        ih, iw = clip.img.shape[:2]
-    else:
-        ih, iw = clip.size[1], clip.size[0]
-
-    # Choose target size based on orientation
-    if iw > ih:
-        target_size = landscape_size
-    else:
-        target_size = portrait_size
-
-    w, h = target_size
-
-    def make_blur_frame(get_frame, t):
-        frame = get_frame(t)
-        frame_cv = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        bg = cv2.resize(frame_cv, (w, h))
-        bg = cv2.GaussianBlur(bg, (99, 99), 30)
-        scale = min(w / iw, h / ih)
-        nw, nh = int(iw * scale), int(ih * scale)
-        fg = cv2.resize(frame_cv, (nw, nh))
-        x1 = (w - nw) // 2
-        y1 = (h - nh) // 2
-        bg[y1:y1+nh, x1:x1+nw] = fg
-        return cv2.cvtColor(bg, cv2.COLOR_BGR2RGB)
+def resize_and_pad(clip, target_size=(720, 1280)):
+    """
+    Resizes and pads a clip to the target_size (default portrait 720x1280).
+    For landscape clips, it will scale to fill height and center-crop width.
+    For portrait clips, it will scale to fit within target_size.
+    Background is a blurred version of the clip.
+    """    
+    target_w, target_h = target_size
 
     if hasattr(clip, 'img'):
-        def make_blur_image():
-            frame = clip.img
-            frame_cv = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            bg = cv2.resize(frame_cv, (w, h))
-            bg = cv2.GaussianBlur(bg, (99, 99), 30)
-            scale = min(w / iw, h / ih)
-            nw, nh = int(iw * scale), int(ih * scale)
-            fg = cv2.resize(frame_cv, (nw, nh))
-            x1 = (w - nw) // 2
-            y1 = (h - nh) // 2
-            bg[y1:y1+nh, x1:x1+nw] = fg
-            return cv2.cvtColor(bg, cv2.COLOR_BGR2RGB)
-        return ImageClip(make_blur_image()).set_duration(clip.duration)
+        original_frame_rgb = clip.img
+        original_h, original_w = original_frame_rgb.shape[:2]
+        is_image = True
     else:
-        return clip.fl(lambda gf, t: make_blur_frame(gf, t)).set_duration(clip.duration)
+        # For videos, we might need to get a sample frame to determine dimensions accurately if clip.size is not enough
+        # However, clip.size should generally be correct for videos.
+        original_w, original_h = clip.size
+        is_image = False
+        # Create a sample frame for blurring for videos
+        # Taking a frame from near the middle of the video, or first if too short
+        sample_time = min(clip.duration / 2, 0.1) if clip.duration > 0 else 0
+        original_frame_rgb = clip.get_frame(sample_time)
+
+    original_frame_bgr = cv2.cvtColor(original_frame_rgb, cv2.COLOR_RGB2BGR)
+
+    # Create a blurred background matching the target size
+    blurred_bg_bgr = cv2.resize(original_frame_bgr, (target_w, target_h))
+    blurred_bg_bgr = cv2.GaussianBlur(blurred_bg_bgr, (99, 99), 30)
+
+    # Handle landscape media (original_w > original_h)
+    if original_w > original_h:
+        # Scale to fit target height, then center crop width
+        scale_ratio = target_h / original_h
+        scaled_w = int(original_w * scale_ratio)
+        scaled_h = target_h # int(original_h * scale_ratio) which is target_h
+        
+        resized_frame_bgr = cv2.resize(original_frame_bgr, (scaled_w, scaled_h))
+        
+        # Crop width if necessary
+        if scaled_w > target_w:
+            crop_x = (scaled_w - target_w) // 2
+            cropped_frame_bgr = resized_frame_bgr[:, crop_x:crop_x + target_w]
+        else:
+            # This case should ideally not happen if original was landscape and we scaled to target_h
+            # But if it does (e.g. original aspect very wide but not tall enough after scaling), pad width
+            cropped_frame_bgr = cv2.copyMakeBorder(
+                resized_frame_bgr, 0, 0, 
+                (target_w - scaled_w) // 2, (target_w - scaled_w + 1) // 2, 
+                cv2.BORDER_CONSTANT, value=[0,0,0]
+            )
+        final_fg_bgr = cropped_frame_bgr
+        # The foreground is already at target_w, target_h (or should be close)
+        # We composite this onto the blurred_bg_bgr. Since it's a center crop, x_offset and y_offset are 0.
+        final_composited_bgr = blurred_bg_bgr # Start with blurred bg
+        # Ensure fg is exactly target_w x target_h for direct placement
+        final_fg_bgr_resized = cv2.resize(final_fg_bgr, (target_w, target_h)) 
+        final_composited_bgr[0:target_h, 0:target_w] = final_fg_bgr_resized
+
+    # Handle portrait or square media (original_w <= original_h)
+    else:
+        # Scale to fit within target_w, target_h while maintaining aspect ratio
+        scale_w_ratio = target_w / original_w
+        scale_h_ratio = target_h / original_h
+        scale_ratio = min(scale_w_ratio, scale_h_ratio)
+
+        scaled_w = int(original_w * scale_ratio)
+        scaled_h = int(original_h * scale_ratio)
+
+        resized_frame_bgr = cv2.resize(original_frame_bgr, (scaled_w, scaled_h))
+        
+        # Calculate padding
+        pad_x = (target_w - scaled_w) // 2
+        pad_y = (target_h - scaled_h) // 2
+
+        final_composited_bgr = blurred_bg_bgr # Start with blurred_bg
+        final_composited_bgr[pad_y:pad_y + scaled_h, pad_x:pad_x + scaled_w] = resized_frame_bgr
+    
+    final_composited_rgb = cv2.cvtColor(final_composited_bgr, cv2.COLOR_BGR2RGB)
+
+    if is_image:
+        return ImageClip(final_composited_rgb).set_duration(clip.duration)
+    else:
+        # For videos, we need a function that applies this transformation to each frame
+        def transform_frame(get_frame, t):
+            frame_rgb = get_frame(t)
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            original_h_f, original_w_f = frame_rgb.shape[:2]
+
+            # Background (can be pre-calculated or use a static blurred image from first frame)
+            # For simplicity here, re-using the initial blurred_bg_bgr derived from a sample frame.
+            # A more robust solution might blur each frame or use the pre-calculated blurred_bg_rgb.
+            current_blurred_bg_bgr = cv2.resize(frame_bgr, (target_w, target_h))
+            current_blurred_bg_bgr = cv2.GaussianBlur(current_blurred_bg_bgr, (99,99), 30)
+
+            if original_w_f > original_h_f: # Landscape frame
+                s_ratio = target_h / original_h_f
+                s_w, s_h = int(original_w_f * s_ratio), target_h
+                resized_f_bgr = cv2.resize(frame_bgr, (s_w, s_h))
+                if s_w > target_w:
+                    crop_x_f = (s_w - target_w) // 2
+                    cropped_f_bgr = resized_f_bgr[:, crop_x_f:crop_x_f + target_w]
+                else:
+                    cropped_f_bgr = cv2.copyMakeBorder(resized_f_bgr, 0, 0, (target_w - s_w) // 2, (target_w - s_w + 1) // 2, cv2.BORDER_CONSTANT, value=[0,0,0])
+                
+                final_f_bgr_resized = cv2.resize(cropped_f_bgr, (target_w, target_h))
+                # Composite onto blurred background
+                composited_f_bgr = current_blurred_bg_bgr
+                composited_f_bgr[0:target_h, 0:target_w] = final_f_bgr_resized
+            else: # Portrait or square frame
+                s_w_ratio = target_w / original_w_f
+                s_h_ratio = target_h / original_h_f
+                s_ratio = min(s_w_ratio, s_h_ratio)
+                s_w, s_h = int(original_w_f * s_ratio), int(original_h_f * s_ratio)
+                resized_f_bgr = cv2.resize(frame_bgr, (s_w, s_h))
+                p_x = (target_w - s_w) // 2
+                p_y = (target_h - s_h) // 2
+                composited_f_bgr = current_blurred_bg_bgr
+                composited_f_bgr[p_y:p_y + s_h, p_x:p_x + s_w] = resized_f_bgr
+            
+            return cv2.cvtColor(composited_f_bgr, cv2.COLOR_BGR2RGB)
+        
+        return clip.fl(transform_frame).set_duration(clip.duration)
 
 def create_title_overlay(clip, title_text, target_size):
     try:
