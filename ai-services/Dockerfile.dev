@@ -1,0 +1,29 @@
+FROM python:3.10-slim
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y ffmpeg imagemagick && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set work directory
+WORKDIR /app
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip uninstall -y supabase-py supabase gotrue postgrest realtime httpx httpcore sniffio h11 || true
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the app code
+COPY . .
+
+# Copy the logo file
+COPY HoneybeeLogo.png .
+
+# Copy the policy.xml file
+COPY policy.xml /etc/ImageMagick-6/policy.xml
+
+# Expose the port
+EXPOSE 5000
+
+# No default CMD, so you can specify uvicorn with --reload for dev
+ 

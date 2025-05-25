@@ -22,7 +22,7 @@ class _AppRouterState extends State<AppRouter> {
       builder: (context, snapshot) {
         final session = snapshot.data?.session;
 
-        // If user is authenticated, show quest completed screen
+        // If user is authenticated, show HomeScreen
         if (session != null) {
           return const HomeScreen();
           // To show home screen instead, replace with:
