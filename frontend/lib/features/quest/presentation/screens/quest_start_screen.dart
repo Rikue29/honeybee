@@ -13,6 +13,8 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'quiz_screen.dart';
 import 'mission_details_screen.dart';
+import 'quest_completed_screen.dart';
+import '../../domain/models/quest_highlight.dart';
 
 class QuestStartScreen extends StatefulWidget {
   final List<Location> locations;
@@ -41,14 +43,25 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
   geo.Position? _userLocation;
   LineLayer? _routeLayer;
   int _currentLocationIndex = 0;
+  bool _isQuestChainCompleted = false;
 
   @override
   void initState() {
     super.initState();
     _locations = widget.locations;
-    _initializeMap();
-    _loadMarkerImages();
-    _startArrivalSimulation();
+    if (_locations.isEmpty) {
+      print("[QuestStartScreen] Error: No locations provided for the quest.");
+      _isQuestChainCompleted = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _navigateToQuestCompletedScreen(true);
+        }
+      });
+    } else {
+      _initializeMap();
+      _loadMarkerImages();
+      _startArrivalSimulation();
+    }
   }
 
   void _initializeMap() {
@@ -67,7 +80,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
 
   Future<void> _loadMarkerImages() async {
     if (_isDisposed) return;
-    
+
     // Load numbered markers
     for (int i = 1; i <= 4; i++) {
       final markerBytes = await rootBundle.load('assets/images/marker-$i.png');
@@ -75,10 +88,11 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
         _locationMarkerImages.add(markerBytes.buffer.asUint8List());
       }
     }
-    
+
     // Load user marker
-    final userMarkerBytes = await rootBundle.load('assets/images/marker-here.png');
-    
+    final userMarkerBytes =
+        await rootBundle.load('assets/images/marker-here.png');
+
     if (!_isDisposed && mounted) {
       setState(() {
         _userMarkerImage = userMarkerBytes.buffer.asUint8List();
@@ -88,33 +102,38 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
 
   void _onMapCreated(MapboxMap controller) async {
     if (!mounted || _isDisposed) return;
-    
+
     setState(() {
       mapboxMap = controller;
     });
 
     // Initialize the point annotation manager
-    pointAnnotationManager = await controller.annotations.createPointAnnotationManager();
+    pointAnnotationManager =
+        await controller.annotations.createPointAnnotationManager();
     _addMarkersToMap();
   }
 
   Future<void> _addMarkersToMap() async {
-    if (mapboxMap == null || _locationMarkerImages.isEmpty || _isDisposed) return;
+    if (mapboxMap == null ||
+        _locationMarkerImages.isEmpty ||
+        _isDisposed ||
+        _isQuestChainCompleted) return;
 
     try {
       // Create point annotation manager if it doesn't exist
-      pointAnnotationManager ??= await mapboxMap!.annotations.createPointAnnotationManager();
-      
+      pointAnnotationManager ??=
+          await mapboxMap!.annotations.createPointAnnotationManager();
+
       // Clear existing annotations
       await pointAnnotationManager!.deleteAll();
 
       // Add markers for each location
       for (var i = 0; i < _locations.length; i++) {
         if (_isDisposed) return;
-        
+
         final location = _locations[i];
         final markerIndex = i % _locationMarkerImages.length;
-        
+
         final options = PointAnnotationOptions(
           geometry: Point(
             coordinates: Position(location.longitude, location.latitude),
@@ -131,7 +150,8 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
         final currentLocation = _locations[_currentLocationIndex];
         final cameraOptions = CameraOptions(
           center: Point(
-            coordinates: Position(currentLocation.longitude, currentLocation.latitude),
+            coordinates:
+                Position(currentLocation.longitude, currentLocation.latitude),
           ),
           zoom: 14.0,
         );
@@ -143,8 +163,9 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
   }
 
   void _startArrivalSimulation() {
+    if (_isQuestChainCompleted) return;
     print('Starting arrival simulation...'); // Debug log
-    Future.delayed(const Duration(seconds:4), () {
+    Future.delayed(const Duration(seconds: 4), () {
       print('Simulated arrival, showing confirmation...'); // Debug log
       if (!mounted) return;
       setState(() {}); // Ensure the widget is in a clean state
@@ -155,8 +176,21 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
   }
 
   void _showArrivalPrompt() {
-    if (!mounted) return;
-    
+    if (!mounted || _isQuestChainCompleted) {
+      if (_isQuestChainCompleted && mounted) {}
+      return;
+    }
+
+    if (_currentLocationIndex >= _locations.length) {
+      print(
+          "[QuestStartScreen] _showArrivalPrompt called with invalid index $_currentLocationIndex. Navigating to completed screen.");
+      setState(() {
+        _isQuestChainCompleted = true;
+      });
+      _navigateToQuestCompletedScreen();
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -174,7 +208,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Have you arrived at ${widget.locations[_currentLocationIndex].name}?',
+              'Have you arrived at ${_locations[_currentLocationIndex].name}?',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 18,
@@ -182,18 +216,18 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            // Arrange buttons in a Column for better spacing and to include the dev button
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment:
+                  CrossAxisAlignment.stretch, // Make buttons stretch
               children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Not yet'),
-                ),
                 ElevatedButton(
                   onPressed: () async {
-                    Navigator.pop(dialogContext);
-                    print("[QuestStartScreen] User clicked 'Yes' for location: ${widget.locations[_currentLocationIndex].name}");
-                    
+                    Navigator.pop(dialogContext); // Pop this arrival dialog
+                    print(
+                        "[QuestStartScreen] User clicked 'Yes' for location: ${_locations[_currentLocationIndex].name}");
+
                     final currentLocation = _locations[_currentLocationIndex];
                     final missionCompleted = await Navigator.push<bool>(
                       context,
@@ -205,37 +239,80 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                           latitude: currentLocation.latitude,
                           longitude: currentLocation.longitude,
                         ),
-                        settings: const RouteSettings(name: 'MissionDetailsScreen'),
+                        settings:
+                            const RouteSettings(name: 'MissionDetailsScreen'),
                       ),
                     );
 
-                    print("[QuestStartScreen] Result from MissionDetailsScreen: $missionCompleted for location: ${widget.locations[_currentLocationIndex].name}");
+                    print(
+                        "[QuestStartScreen] Result from MissionDetailsScreen: $missionCompleted for location: ${_locations[_currentLocationIndex].name}");
 
                     if (missionCompleted == true) {
                       if (mounted) {
-                        print("[QuestStartScreen] Mission completed, advancing location index from $_currentLocationIndex");
-                        setState(() {
-                          _currentLocationIndex++;
-                        });
-                        print("[QuestStartScreen] New location index: $_currentLocationIndex");
-
-                        if (_currentLocationIndex < _locations.length) {
-                          _showNavigateToNextPrompt();
+                        print(
+                            "[QuestStartScreen] Mission completed, advancing location index from $_currentLocationIndex");
+                        int newIndex = _currentLocationIndex + 1;
+                        if (newIndex >= _locations.length) {
+                          print(
+                              "[QuestStartScreen] All locations completed. New index: $newIndex");
+                          setState(() {
+                            _currentLocationIndex = newIndex;
+                            _isQuestChainCompleted = true;
+                          });
+                          _navigateToQuestCompletedScreen();
                         } else {
-                          _showQuestCompleteDialog();
+                          print(
+                              "[QuestStartScreen] Mission completed, advancing to index: $newIndex");
+                          setState(() {
+                            _currentLocationIndex = newIndex;
+                          });
+                          _addMarkersToMap();
+                          _showNavigateToNextPrompt(); // Proceed to next location prompt
                         }
                       }
                     } else {
-                      print("[QuestStartScreen] Mission NOT completed or quiz not started from details.");
+                      print(
+                          "[QuestStartScreen] Mission NOT completed or quiz not started from details for ${_locations[_currentLocationIndex].name}.");
+                      _startArrivalSimulation(); // Re-prompt for the same location
                     }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12), // Ensure consistent padding
                   ),
                   child: const Text(
-                    'Yes',
+                    'Yes, I\'m Here!',
                     style: TextStyle(color: Colors.white),
                   ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pop(dialogContext), // Just close this dialog
+                  child: const Text('Not Yet'),
+                ),
+                const SizedBox(height: 12), // Spacer before dev button
+                OutlinedButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext); // Close this dialog
+                    print(
+                        "[QuestStartScreen] Dev shortcut: Skipping to quest completed screen.");
+                    setState(() {
+                      _isQuestChainCompleted = true;
+                    });
+                    _navigateToQuestCompletedScreen();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.blueAccent,
+                    side: const BorderSide(color: Colors.blueAccent),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10), // Ensure consistent padding
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('DEV: Skip to Quest End'),
                 ),
               ],
             ),
@@ -243,131 +320,161 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
         ),
       ),
     ).then((_) {
-      // Handle any cleanup if needed after dialog is dismissed
-      if (mounted) {
+      if (mounted && !_isQuestChainCompleted) {
         setState(() {});
       }
     });
   }
 
   void _showNavigateToNextPrompt() {
-    if (!mounted) return;
-    
+    if (!mounted || _isQuestChainCompleted) return;
+
+    if (_currentLocationIndex >= _locations.length) {
+      print(
+          "[QuestStartScreen] _showNavigateToNextPrompt called with invalid index $_currentLocationIndex. Attempting to show quest complete.");
+      _isQuestChainCompleted = true;
+      _navigateToQuestCompletedScreen();
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/images/bee_quest.png',
-              height: 100,
-              width: 100,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Ready to head to the next location?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Flexible(
-              child: ElevatedButton(
+        title: Text('Next Stop: ${_locations[_currentLocationIndex].name}'),
+        content: Text(
+            'Ready to head to your next destination, ${_locations[_currentLocationIndex].name}?'),
+        actionsAlignment: MainAxisAlignment.center,
+        actionsPadding:
+            const EdgeInsets.only(bottom: 16.0, left: 16.0, right: 16.0),
+        actions: [
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ElevatedButton.icon(
+                icon: const Icon(Icons.navigation, color: Colors.white),
+                label: const Text('Navigate using Google Maps',
+                    style: TextStyle(color: Colors.white)),
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
                   _openGoogleMapsNavigation(_locations[_currentLocationIndex]);
-                  _startArrivalSimulation(); // Start the simulation for the next location
+                  _startArrivalSimulation();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.navigation, color: Colors.white),
-                    SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Navigate using Google Maps',
-                        style: TextStyle(color: Colors.white),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Not Yet',
+                    style: TextStyle(color: Colors.orange)),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  print(
+                      "[QuestStartScreen] Dev shortcut: Skipping to quest completed screen.");
+                  setState(() {
+                    _isQuestChainCompleted = true;
+                  });
+                  _navigateToQuestCompletedScreen();
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blueAccent,
+                  side: const BorderSide(color: Colors.blueAccent),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('DEV: Skip to Quest End'),
+              ),
+            ],
+          )
+        ],
       ),
     );
   }
 
-  void _showQuestCompleteDialog() {
+  void _navigateToQuestCompletedScreen([bool isEmptyQuest = false]) {
     if (!mounted) return;
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/images/bee_quest.png',
-              height: 100,
-              width: 100,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Congratulations! You\'ve completed the quest!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const Text(
-              'You\'ve earned 400 points!',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.orange,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pop(); // Return to home screen
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Complete Quest',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
+    print(
+        "[QuestStartScreen] Navigating to QuestCompletedScreen. IsEmptyQuest: $isEmptyQuest");
+
+    final String areaName = widget.city;
+    final int xpEarned = isEmptyQuest ? 0 : 400;
+    final int questsCompleted = isEmptyQuest ? 0 : 1;
+
+    // Define a map for location name to specific image paths
+    final Map<String, String> locationImageMap = {
+      'Sultan Abu Bakar Museum': 'assets/images/museum_tour.png',
+      'Pekan Riverfront': 'assets/images/location_waterfront.JPG',
+      'Masjid Sultan Abdullah': 'assets/images/masjid_sultan_abdullah.png',
+      'Abu Bakar Palace': 'assets/images/istana_abubakar.png',
+    };
+    const String defaultPlaceholderImage = 'assets/images/bee_quest.png';
+
+    List<QuestHighlight> highlights = [];
+    if (!isEmptyQuest && _locations.isNotEmpty) {
+      highlights = _locations.map((loc) {
+        // Use the specific image from the map if available, otherwise use placeholder
+        String imagePath =
+            locationImageMap[loc.name] ?? defaultPlaceholderImage;
+
+        // A special check for the 4th location if it's Abu Bakar Palace and we want a different placeholder or specific logic
+        if (loc.name == 'Abu Bakar Palace' &&
+            !locationImageMap.containsKey(loc.name)) {
+          // This means Abu Bakar Palace was not in the map, so it will use defaultPlaceholderImage
+          // If you had a specific placeholder for the 4th unpictured item, you could set it here.
+          // e.g. imagePath = 'assets/images/abu_bakar_palace_placeholder.png';
+        }
+
+        return QuestHighlight(
+          title: loc.name,
+          subtitle: 'Visited this amazing place!',
+          imagePath: imagePath,
+          isCompleted: true,
+        );
+      }).toList();
+    }
+
+    if (highlights.isEmpty && !isEmptyQuest) {
+      highlights.add(QuestHighlight(
+        title: areaName,
+        subtitle: "Journey Concluded!",
+        imagePath:
+            defaultPlaceholderImage, // Use placeholder for default highlight
+        isCompleted: true,
+      ));
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => QuestCompletedScreen(
+          areaName: areaName,
+          xpEarned: xpEarned,
+          questsCompleted: questsCompleted,
+          highlights: highlights,
+          onContinue: () {
+            if (Navigator.canPop(context)) {
+              Navigator.of(context).pop();
+            }
+          },
+          onGenerateVideo: () {
+            print("Generate video called from QuestCompletedScreen");
+          },
         ),
       ),
     );
@@ -377,7 +484,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
     final url = Uri.parse(
       'https://www.google.com/maps/dir/?api=1&destination=${location.latitude},${location.longitude}',
     );
-    
+
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } else {
@@ -391,14 +498,35 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
   @override
   void dispose() {
     _isDisposed = true;
-    pointAnnotationManager?.deleteAll();
-    pointAnnotationManager = null;
-    mapboxMap = null;
+    // Null-check before calling deleteAll to prevent errors on disposed manager
+    if (pointAnnotationManager != null) {
+      pointAnnotationManager!.deleteAll().catchError((e) {
+        print(
+            "[QuestStartScreen] Error during pointAnnotationManager.deleteAll in dispose: $e");
+      });
+    }
+    pointAnnotationManager = null; // Explicitly nullify
+    mapboxMap = null; // Explicitly nullify
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isQuestChainCompleted && _locations.isNotEmpty) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (_locations.isEmpty && !_isQuestChainCompleted) {
+      return const Scaffold(
+          body: Center(child: Text("No locations for this quest. Error.")));
+    }
+
+    final safeLocationIndex = _currentLocationIndex.clamp(
+        0, _locations.isNotEmpty ? _locations.length - 1 : 0);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quest in Progress'),
@@ -416,15 +544,13 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
               cameraOptions: CameraOptions(
                 center: Point(
                   coordinates: Position(
-                    _locations[_currentLocationIndex].longitude,
-                    _locations[_currentLocationIndex].latitude,
+                    _locations[safeLocationIndex].longitude,
+                    _locations[safeLocationIndex].latitude,
                   ),
                 ),
                 zoom: 14.0,
               ),
             ),
-          
-          // Current location indicator
           Positioned(
             bottom: 16,
             left: 16,
@@ -447,7 +573,7 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                   const Icon(Icons.location_on, color: Colors.orange),
                   const SizedBox(width: 8),
                   Text(
-                    'Location ${_currentLocationIndex + 1} of ${_locations.length}',
+                    'Location ${safeLocationIndex + 1} of ${_locations.length}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
@@ -458,12 +584,16 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openGoogleMapsNavigation(_locations[_currentLocationIndex]),
-        backgroundColor: Colors.orange,
-        icon: const Icon(Icons.navigation, color: Colors.white),
-        label: const Text('Navigate', style: TextStyle(color: Colors.white)),
-      ),
+      floatingActionButton: _isQuestChainCompleted || _locations.isEmpty
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () =>
+                  _openGoogleMapsNavigation(_locations[safeLocationIndex]),
+              backgroundColor: Colors.orange,
+              icon: const Icon(Icons.navigation, color: Colors.white),
+              label:
+                  const Text('Navigate', style: TextStyle(color: Colors.white)),
+            ),
     );
   }
-} 
+}

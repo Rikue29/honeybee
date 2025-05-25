@@ -110,6 +110,9 @@ flutter:
     - assets/images/pekan_riverfront.png
     - assets/images/HoneybeeLogo.png
     - .env
+    - assets/images/museum_tour.png
+    - assets/images/location_waterfront.JPG
+    - assets/images/masjid_sultan_abdullah.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -273,6 +273,22 @@ class QuestCompletedScreen extends StatelessWidget {
               width: 80,
               height: 80,
               fit: BoxFit.cover,
+              errorBuilder: (BuildContext context, Object exception,
+                  StackTrace? stackTrace) {
+                print(
+                    "Error loading image for ${quest.title}: ${quest.imagePath}. Error: $exception");
+                // Return a simple placeholder widget instead of another Image.asset for now
+                return Container(
+                  width: 80,
+                  height: 80,
+                  color: Colors.grey[300], // A light grey box
+                  child: Icon(
+                    Icons.broken_image,
+                    color: Colors.grey[600],
+                    size: 40,
+                  ),
+                );
+              },
             ),
           ),
 
