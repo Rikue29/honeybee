@@ -48,9 +48,15 @@ def resize_and_pad(clip, target_size=(720, 1280)):
     def make_blur_frame(get_frame, t):
         frame = get_frame(t)
         frame_cv = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        
+        # Check if the frame is landscape and needs rotation
+        ih, iw = frame.shape[:2]
+        if iw > ih:  # If width is greater than height (landscape)
+            frame_cv = cv2.rotate(frame_cv, cv2.ROTATE_90_CLOCKWISE)
+            ih, iw = iw, ih  # Swap dimensions after rotation
+        
         bg = cv2.resize(frame_cv, (w, h))
         bg = cv2.GaussianBlur(bg, (99, 99), 30)
-        ih, iw = frame.shape[:2]
         scale = min(w / iw, h / ih)
         nw, nh = int(iw * scale), int(ih * scale)
         fg = cv2.resize(frame_cv, (nw, nh))
@@ -63,9 +69,15 @@ def resize_and_pad(clip, target_size=(720, 1280)):
         def make_blur_image():
             frame = clip.img
             frame_cv = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            
+            # Check if the image is landscape and needs rotation
+            ih, iw = frame.shape[:2]
+            if iw > ih:  # If width is greater than height (landscape)
+                frame_cv = cv2.rotate(frame_cv, cv2.ROTATE_90_CLOCKWISE)
+                ih, iw = iw, ih  # Swap dimensions after rotation
+            
             bg = cv2.resize(frame_cv, (w, h))
             bg = cv2.GaussianBlur(bg, (99, 99), 30)
-            ih, iw = frame.shape[:2]
             scale = min(w / iw, h / ih)
             nw, nh = int(iw * scale), int(ih * scale)
             fg = cv2.resize(frame_cv, (nw, nh))

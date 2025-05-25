@@ -108,7 +108,7 @@ class _VideoGenerationLoadingScreenState
       }
       final SupabaseClient client =
           SupabaseClient(supabaseUrl, supabaseAnonKey);
-      const bucketName = 'upload.videos';
+      const bucketName = 'user-pics';
 
       print('LoadingScreen: Listing files from $bucketName');
       List<FileObject> files = await client.storage.from(bucketName).list();
