@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import '../widgets/journey_video_section.dart';
 import '../../domain/models/quest_highlight.dart';
 import '../../../rewards/presentation/screens/rewards_screen.dart';
+import '../../../home/presentation/screens/home_screen.dart';
 
 class QuestCompletedScreen extends StatelessWidget {
   final String areaName;
   final int xpEarned;
   final int questsCompleted;
   final List<QuestHighlight> highlights;
-  final VoidCallback onContinue;
   final VoidCallback onGenerateVideo;
   final VoidCallback? onLogout;
 
@@ -18,7 +18,9 @@ class QuestCompletedScreen extends StatelessWidget {
     required this.xpEarned,
     required this.questsCompleted,
     required this.highlights,
-    required this.onContinue,
+    @Deprecated(
+        'This onContinue is from the constructor and might be unused or need review. The primary post-video flow is now separate.')
+    required VoidCallback onContinue,
     required this.onGenerateVideo,
     this.onLogout,
   });
@@ -238,19 +240,30 @@ class QuestCompletedScreen extends StatelessWidget {
                           const SizedBox(height: 16),
                           JourneyVideoSection(
                             journeyId: areaName,
-                            onContinue: onContinue,
+                            onContinue: () {
+                              print(
+                                  'JourneyVideoSection onContinue triggered for area: $areaName. Navigating to HomeScreen as placeholder.');
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(
+                                    builder: (context) => const HomeScreen()),
+                                (Route<dynamic> route) => false,
+                              );
+                            },
                           ),
                           const SizedBox(height: 16),
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: () {
-                                Navigator.of(context)
-                                    .popUntil((route) => route.isFirst);
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(
+                                      builder: (context) => const HomeScreen()),
+                                  (Route<dynamic> route) => false,
+                                );
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
-                                foregroundColor: Color(0xFFEA8601),
+                                foregroundColor: const Color(0xFFEA8601),
                                 elevation: 0,
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 12),

@@ -292,28 +292,6 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                       Navigator.pop(dialogContext), // Just close this dialog
                   child: const Text('Not Yet'),
                 ),
-                const SizedBox(height: 12), // Spacer before dev button
-                OutlinedButton(
-                  onPressed: () {
-                    Navigator.pop(dialogContext); // Close this dialog
-                    print(
-                        "[QuestStartScreen] Dev shortcut: Skipping to quest completed screen.");
-                    setState(() {
-                      _isQuestChainCompleted = true;
-                    });
-                    _navigateToQuestCompletedScreen();
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.blueAccent,
-                    side: const BorderSide(color: Colors.blueAccent),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10), // Ensure consistent padding
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('DEV: Skip to Quest End'),
-                ),
               ],
             ),
           ],
@@ -378,28 +356,6 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                 onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Not Yet',
                     style: TextStyle(color: Colors.orange)),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  print(
-                      "[QuestStartScreen] Dev shortcut: Skipping to quest completed screen.");
-                  setState(() {
-                    _isQuestChainCompleted = true;
-                  });
-                  _navigateToQuestCompletedScreen();
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.blueAccent,
-                  side: const BorderSide(color: Colors.blueAccent),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('DEV: Skip to Quest End'),
               ),
             ],
           )

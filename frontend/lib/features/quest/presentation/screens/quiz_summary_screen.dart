@@ -520,7 +520,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                   Row(
                     children: [
                       Image.asset(
-                        'assets/images/bee_quest.png',
+                        'assets/images/pahang_go_coupon.png',
                         height: 40,
                         width: 40,
                       ),
