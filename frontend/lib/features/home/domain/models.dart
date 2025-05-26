@@ -37,6 +37,8 @@ class QuestInfo {
   final String iconAssetPath; // e.g., path to a trophy icon
   final int currentPoints;
   final int totalPoints;
+  final int completedLocations;
+  final int totalLocations;
 
   QuestInfo({
     required this.id,
@@ -45,6 +47,8 @@ class QuestInfo {
     required this.iconAssetPath,
     required this.currentPoints,
     required this.totalPoints,
+    required this.completedLocations,
+    required this.totalLocations,
   });
 
   double get progress {

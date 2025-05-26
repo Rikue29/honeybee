@@ -292,6 +292,26 @@ class _QuestStartScreenState extends State<QuestStartScreen> {
                       Navigator.pop(dialogContext), // Just close this dialog
                   child: const Text('Not Yet'),
                 ),
+                if (true) // Always show DEV button for now
+                  const SizedBox(height: 8),
+                if (true)
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      setState(() {
+                        _isQuestChainCompleted = true;
+                      });
+                      _navigateToQuestCompletedScreen();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'DEV: Skip to Quest End',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
               ],
             ),
           ],
