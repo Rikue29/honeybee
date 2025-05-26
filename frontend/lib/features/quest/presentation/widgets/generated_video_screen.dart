@@ -5,13 +5,18 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../../presentation/screens/next_area_prompt_screen.dart';
+import '../../presentation/screens/next_area_transition_screen.dart';
+import '../../../home/presentation/screens/home_screen.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 class GeneratedVideoScreen extends StatefulWidget {
   final String videoUrl;
+  final String currentAreaName;
 
   const GeneratedVideoScreen({
     super.key,
     required this.videoUrl,
+    required this.currentAreaName,
   });
 
   @override
@@ -266,7 +271,8 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
                         child: Padding(
                           padding: const EdgeInsets.all(24.0),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               const Text(
                                 'Share Your Adventure',
@@ -285,72 +291,118 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
                                 ),
                               ),
                               const SizedBox(height: 24),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.groups),
-                                label: const Text('Share On Community'),
-                                onPressed: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          NextAreaPromptScreen(
-                                        onYes: () {
-                                          // TODO: Implement what happens when user presses Yes
-                                          Navigator.of(context).pop();
-                                        },
-                                        onNo: () {
-                                          // TODO: Implement what happens when user presses No
-                                          Navigator.of(context).pop();
-                                        },
+                              SizedBox(
+                                width: 240,
+                                child: Column(
+                                  children: [
+                                    ElevatedButton.icon(
+                                      icon: const Icon(Icons.groups),
+                                      label: const Text('Share On Community'),
+                                      onPressed: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (promptContext) =>
+                                                NextAreaPromptScreen(
+                                              onYes: () {
+                                                Navigator.of(promptContext)
+                                                    .pop();
+                                                Navigator.of(context)
+                                                    .pushReplacement(
+                                                  MaterialPageRoute(
+                                                    builder: (transitionContext) =>
+                                                        NextAreaTransitionScreen(
+                                                      completedAreaName: widget
+                                                          .currentAreaName,
+                                                      completedAreaCoordinates:
+                                                          Point(
+                                                              coordinates:
+                                                                  Position(
+                                                                      103.40,
+                                                                      3.50)),
+                                                      nextAreaName:
+                                                          'Next Adventure',
+                                                      nextAreaCoordinates:
+                                                          Point(
+                                                              coordinates:
+                                                                  Position(
+                                                                      103.33,
+                                                                      3.80)),
+                                                      nextAreaDescription:
+                                                          "A new chapter awaits!",
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              onNo: () {
+                                                Navigator.of(promptContext)
+                                                    .pop();
+                                                Navigator.of(context)
+                                                    .pushAndRemoveUntil(
+                                                  MaterialPageRoute(
+                                                      builder: (homeContext) =>
+                                                          const HomeScreen()),
+                                                  (Route<dynamic> route) =>
+                                                      false,
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white,
+                                        foregroundColor:
+                                            const Color(0xFFEA8601),
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(24),
+                                          side: const BorderSide(
+                                            color: Color(0xFFEA8601),
+                                            width: 1,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: const Color(0xFFEA8601),
-                                  minimumSize: const Size(double.infinity, 48),
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                    side: const BorderSide(
-                                      color: Color(0xFFEA8601),
-                                      width: 1,
+                                    const SizedBox(height: 12),
+                                    const Row(
+                                      children: [
+                                        Expanded(
+                                            child: Divider(
+                                                color: Color(0xFFEA8601))),
+                                        Padding(
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 8.0),
+                                          child: Text('or',
+                                              style: TextStyle(
+                                                  color: Color(0xFFEA8601))),
+                                        ),
+                                        Expanded(
+                                            child: Divider(
+                                                color: Color(0xFFEA8601))),
+                                      ],
                                     ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              const Row(
-                                children: [
-                                  Expanded(
-                                      child: Divider(color: Color(0xFFEA8601))),
-                                  Padding(
-                                    padding:
-                                        EdgeInsets.symmetric(horizontal: 8.0),
-                                    child: Text('or',
-                                        style: TextStyle(
-                                            color: Color(0xFFEA8601))),
-                                  ),
-                                  Expanded(
-                                      child: Divider(color: Color(0xFFEA8601))),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.share),
-                                label: Text(_isSaving
-                                    ? 'Preparing Video...'
-                                    : 'Share On Social Media'),
-                                onPressed:
-                                    _isSaving ? null : _downloadAndShareVideo,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFEA8601),
-                                  foregroundColor: Colors.white,
-                                  minimumSize: const Size(double.infinity, 48),
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24),
-                                  ),
+                                    const SizedBox(height: 12),
+                                    ElevatedButton.icon(
+                                      icon: const Icon(Icons.share),
+                                      label: Text(_isSaving
+                                          ? 'Preparing Video...'
+                                          : 'Share On Social Media'),
+                                      onPressed: _isSaving
+                                          ? null
+                                          : _downloadAndShareVideo,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFFEA8601),
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(24),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
