@@ -4,8 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import '../../presentation/screens/next_area_prompt_screen.dart';
-import '../../presentation/screens/next_area_transition_screen.dart';
+import '../screens/next_area_popup.dart';
+import '../screens/end_map_screen.dart';
 import '../../../home/presentation/screens/home_screen.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
@@ -172,6 +172,7 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFFF9E6),
       appBar: AppBar(
         title: const Text('Your Journey Video'),
         backgroundColor: Colors.white,
@@ -263,7 +264,7 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Card(
-                        color: const Color(0xFFFFF3D6),
+                        color: const Color.fromARGB(255, 238, 188, 25),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -279,7 +280,7 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
-                                  color: Color(0xFFEA8601),
+                                  color: Color.fromARGB(255, 255, 255, 255),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -287,7 +288,7 @@ class _GeneratedVideoScreenState extends State<GeneratedVideoScreen> {
                                 'share your journey video on social media or community!',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFF8A6B2F),
+                                  color: Color.fromARGB(255, 255, 255, 255),
                                 ),
                               ),
                               const SizedBox(height: 24),
