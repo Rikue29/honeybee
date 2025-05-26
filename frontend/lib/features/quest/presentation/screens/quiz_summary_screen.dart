@@ -44,7 +44,8 @@ class QuizSummaryScreen extends StatefulWidget {
 class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
   final ImagePicker _picker = ImagePicker();
   final PlacesService _placesService = PlacesService();
-  final List<MediaItem> _mediaItems = []; // New: List to store multiple media items
+  final List<MediaItem> _mediaItems =
+      []; // New: List to store multiple media items
   bool _isUploading = false;
   List<Place> _nearbyPlaces = [];
   bool _isLoadingPlaces = false;
@@ -119,23 +120,27 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
   Place _getFallbackRestaurant() {
     // Get location name in lowercase for easier matching
     final locationName = widget.locationId.toLowerCase();
-    
+
     String restaurantName;
     String description;
 
     if (locationName.contains('museum')) {
       restaurantName = "Museum Cafe & Bistro";
       description = "Traditional cafe serving local delights at the museum";
-    } else if (locationName.contains('masjid') || locationName.contains('mosque')) {
+    } else if (locationName.contains('masjid') ||
+        locationName.contains('mosque')) {
       restaurantName = "Warung Pak Mat";
       description = "Authentic Malay cuisine near the mosque";
-    } else if (locationName.contains('palace') || locationName.contains('istana')) {
+    } else if (locationName.contains('palace') ||
+        locationName.contains('istana')) {
       restaurantName = "Royal Kitchen Restaurant";
       description = "Experience royal-inspired local cuisine";
-    } else if (locationName.contains('market') || locationName.contains('pasar')) {
+    } else if (locationName.contains('market') ||
+        locationName.contains('pasar')) {
       restaurantName = "Pasar Street Delights";
       description = "Popular local street food stall";
-    } else if (locationName.contains('river') || locationName.contains('sungai')) {
+    } else if (locationName.contains('river') ||
+        locationName.contains('sungai')) {
       restaurantName = "Riverside Dining";
       description = "Scenic riverside restaurant with local specialties";
     } else {
@@ -157,7 +162,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
     final url = Uri.parse(
       'https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}',
     );
-    
+
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     } else {
@@ -170,25 +175,26 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
 
   Future<void> _pickMedia(ImageSource source, bool isVideo) async {
     try {
-      final XFile? pickedFile = isVideo 
-        ? await _picker.pickVideo(source: source)
-        : await _picker.pickImage(source: source);
-        
+      final XFile? pickedFile = isVideo
+          ? await _picker.pickVideo(source: source)
+          : await _picker.pickImage(source: source);
+
       if (pickedFile != null) {
         final mediaItem = MediaItem(file: pickedFile, isVideo: isVideo);
-        
+
         // Initialize video controller if it's a video
         if (isVideo) {
-          mediaItem.controller = VideoPlayerController.file(File(pickedFile.path))
-            ..initialize().then((_) {
-              setState(() {});
-            });
+          mediaItem.controller =
+              VideoPlayerController.file(File(pickedFile.path))
+                ..initialize().then((_) {
+                  setState(() {});
+                });
         }
-        
+
         setState(() {
           _mediaItems.add(mediaItem);
         });
-        
+
         await _uploadMedia(mediaItem); // Upload the new media item
       }
     } catch (e) {
@@ -211,19 +217,19 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
       if (user == null) throw Exception("User not authenticated for upload.");
 
       final String extension = mediaItem.isVideo ? '.mp4' : '.jpg';
-      final String fileName = '${DateTime.now().millisecondsSinceEpoch}_${widget.locationId}$extension';
+      final String fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${widget.locationId}$extension';
       final File fileToUpload = File(mediaItem.file.path);
 
-      final response = await Supabase.instance.client.storage
-          .from('user-pics')
-          .upload(
-            fileName,
-            fileToUpload,
-            fileOptions: const FileOptions(
-              cacheControl: '3600',
-              upsert: true,
-            ),
-          );
+      final response =
+          await Supabase.instance.client.storage.from('user-pics').upload(
+                fileName,
+                fileToUpload,
+                fileOptions: const FileOptions(
+                  cacheControl: '3600',
+                  upsert: true,
+                ),
+              );
 
       mediaItem.uploadedUrl = response;
 
@@ -243,7 +249,9 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        mediaItem.isVideo ? "Video uploaded successfully!" : "Picture uploaded successfully!",
+                        mediaItem.isVideo
+                            ? "Video uploaded successfully!"
+                            : "Picture uploaded successfully!",
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                         ),
@@ -337,7 +345,8 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                 ),
               ),
               Text(
-                _nearbyPlaces[0].address ?? '${(_nearbyPlaces[0].distance / 1000).toStringAsFixed(1)} km away',
+                _nearbyPlaces[0].address ??
+                    '${(_nearbyPlaces[0].distance / 1000).toStringAsFixed(1)} km away',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -357,7 +366,8 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
                       minimumSize: const Size(200, 45),
                     ),
                     child: const Row(
@@ -380,7 +390,8 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
                     minimumSize: const Size(200, 45),
                   ),
                   child: const Text(
@@ -397,7 +408,8 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                   icon: const Icon(Icons.coffee, size: 18),
                   label: const Text('Take a Break'),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
                     minimumSize: const Size(200, 45),
                   ),
                 ),
@@ -447,7 +459,8 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                   textStyle: const TextStyle(fontSize: 18),
                 ),
               ),
@@ -616,10 +629,12 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.cloud_upload_outlined, size: 50, color: Colors.grey[700]),
+            Icon(Icons.cloud_upload_outlined,
+                size: 50, color: Colors.grey[700]),
             const SizedBox(width: 8),
             IconButton(
-              icon: Icon(Icons.info_outline, color: Colors.orange[700], size: 24),
+              icon:
+                  Icon(Icons.info_outline, color: Colors.orange[700], size: 24),
               onPressed: () {
                 showDialog(
                   context: context,
@@ -660,7 +675,7 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
         ),
         const SizedBox(height: 10),
         Text(
-          _mediaItems.isEmpty 
+          _mediaItems.isEmpty
               ? "Would you like to upload pictures or videos for your journal?"
               : "Add more pictures or videos to your journal:",
           textAlign: TextAlign.center,
@@ -687,7 +702,8 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: mediaItem.isVideo
-                            ? (mediaItem.controller?.value.isInitialized ?? false)
+                            ? (mediaItem.controller?.value.isInitialized ??
+                                    false)
                                 ? VideoPlayer(mediaItem.controller!)
                                 : const Center(child: Icon(Icons.videocam))
                             : Image.file(
@@ -707,7 +723,8 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                             color: Colors.red,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.close, color: Colors.white, size: 16),
+                          child: const Icon(Icons.close,
+                              color: Colors.white, size: 16),
                         ),
                       ),
                     ),
@@ -772,10 +789,11 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                   children: [
                     Text(
                       "SUCCESS!",
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style:
+                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
                     ),
                     const SizedBox(height: 10),
                     ...List.generate(widget.quizResults.length, (index) {
@@ -793,7 +811,8 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
                               result.isCorrect
                                   ? Icons.check_box_outlined
                                   : Icons.disabled_by_default_outlined,
-                              color: result.isCorrect ? Colors.green : Colors.red,
+                              color:
+                                  result.isCorrect ? Colors.green : Colors.red,
                               size: 28,
                             ),
                           ],
@@ -846,10 +865,12 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
               decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[400]!, style: BorderStyle.solid, width: 1)
-              ),
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: Colors.grey[400]!,
+                      style: BorderStyle.solid,
+                      width: 1)),
               child: _buildMediaPreview(),
             ),
             const SizedBox(height: 30),
@@ -873,4 +894,4 @@ class _QuizSummaryScreenState extends State<QuizSummaryScreen> {
       ),
     );
   }
-} 
+}
