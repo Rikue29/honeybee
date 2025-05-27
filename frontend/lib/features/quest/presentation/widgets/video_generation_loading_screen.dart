@@ -179,7 +179,8 @@ class _VideoGenerationLoadingScreenState
           // Replace this screen with the video player screen
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => GeneratedVideoScreen(videoUrl: videoUrl),
+              builder: (context) => GeneratedVideoScreen(
+                  videoUrl: videoUrl, currentAreaName: widget.journeyId),
             ),
           );
         }

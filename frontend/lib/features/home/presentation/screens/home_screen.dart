@@ -5,6 +5,8 @@ import 'package:honeybee/features/quest/presentation/screens/quest_page.dart';
 import 'package:honeybee/features/explore/screens/explore_screen.dart';
 import 'package:honeybee/features/video_feed/pages/video_feed_page.dart';
 import 'package:honeybee/features/rewards/presentation/screens/rewards_screen.dart';
+import 'package:honeybee/features/quest/services/quest_service.dart';
+import '../../domain/models.dart';
 
 // Placeholder classes based on usage
 class UserProfile {
@@ -32,33 +34,16 @@ class UserProfile {
           (xpToNextLevel - totalXpForCurrentLevel);
 }
 
-class QuestInfo {
-  final String id;
-  final String title;
-  final String subtitle;
-  final String iconAssetPath;
-  final int currentPoints;
-  final int totalPoints;
-
-  QuestInfo({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.iconAssetPath,
-    required this.currentPoints,
-    required this.totalPoints,
-  });
-
-  double get progress => totalPoints == 0 ? 0 : currentPoints / totalPoints;
-}
-
 class PopularLocation {
   final String id;
   final String name;
   final String imagePath;
 
-  PopularLocation(
-      {required this.id, required this.name, required this.imagePath});
+  PopularLocation({
+    required this.id,
+    required this.name,
+    required this.imagePath,
+  });
 }
 
 class HomeScreen extends StatefulWidget {
@@ -71,6 +56,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   late LocationService _locationService;
+  final QuestService _questService = QuestService();
+  List<QuestInfo> _ongoingQuests = [];
+  List<QuestInfo> _savedQuests = [];
+  bool _isLoading = true;
 
   // Dummy Data for the new UI - this remains
   final UserProfile _user = UserProfile(
@@ -83,26 +72,6 @@ class _HomeScreenState extends State<HomeScreen> {
     xpToNextLevel: 22000,
   );
 
-  final List<QuestInfo> _ongoingQuests = [
-    QuestInfo(
-        id: 'ongoing1',
-        title: 'Royal Heritage Trail',
-        subtitle: 'Explore the royal history of Pekan',
-        iconAssetPath: 'assets/images/trophy_icon.png',
-        currentPoints: 100,
-        totalPoints: 150),
-  ];
-
-  final List<QuestInfo> _savedQuests = [
-    QuestInfo(
-        id: 'saved1',
-        title: 'Culinary Adventure',
-        subtitle: 'Taste the best local dishes in Pekan',
-        iconAssetPath: 'assets/images/trophy_icon.png',
-        currentPoints: 0,
-        totalPoints: 120),
-  ];
-
   final List<PopularLocation> _popularLocations = [
     PopularLocation(
         id: 'loc1',
@@ -110,18 +79,63 @@ class _HomeScreenState extends State<HomeScreen> {
         imagePath: 'assets/images/museum_tour.png'),
     PopularLocation(
         id: 'loc2',
-        name: 'Pekan Waterfront',
+        name: 'Pekan Riverfront',
         imagePath: 'assets/images/location_waterfront.JPG'),
     PopularLocation(
         id: 'loc3',
-        name: 'Traditional Market',
-        imagePath: 'assets/images/location_market.jpg'),
+        name: 'Masjid Sultan Abdullah',
+        imagePath: 'assets/images/masjid_sultan_abdullah.png'),
+    PopularLocation(
+        id: 'loc4',
+        name: 'Abu Bakar Palace',
+        imagePath: 'assets/images/istana_abubakar.png'),
   ];
 
   @override
   void initState() {
     super.initState();
+    print("[HomeScreen] initState called");
     _locationService = LocationService();
+    _loadQuests();
+  }
+
+  Future<void> _loadQuests() async {
+    print("[HomeScreen] Starting to load quests");
+    try {
+      final ongoingQuestsJson = await _questService.getOngoingQuests();
+      final savedQuestsJson = await _questService.getSavedQuests();
+
+      print(
+          "[HomeScreen] Fetched ${ongoingQuestsJson.length} ongoing and ${savedQuestsJson.length} saved quests");
+
+      if (mounted) {
+        print("[HomeScreen] Converting quests to QuestInfo objects");
+        final ongoingQuests = ongoingQuestsJson
+            .map((q) => _questService.questFromJson(q))
+            .toList();
+        final savedQuests =
+            savedQuestsJson.map((q) => _questService.questFromJson(q)).toList();
+
+        print(
+            "[HomeScreen] Setting state with ${ongoingQuests.length} ongoing and ${savedQuests.length} saved quests");
+        setState(() {
+          _ongoingQuests = ongoingQuests;
+          _savedQuests = savedQuests;
+          _isLoading = false;
+        });
+        print("[HomeScreen] State updated successfully");
+      } else {
+        print("[HomeScreen] Widget not mounted, skipping state update");
+      }
+    } catch (e, stackTrace) {
+      print('[HomeScreen] Error loading quests: $e');
+      print('[HomeScreen] Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Widget _buildHomePageView(
@@ -134,12 +148,13 @@ class _HomeScreenState extends State<HomeScreen> {
       Color tertiaryColor,
       Color backgroundColor,
       Color progressColor) {
+    print(
+        "[HomeScreen] Building home page view with ${ongoingQuests.length} ongoing and ${savedQuests.length} saved quests");
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(0),
         children: [
-          _buildTopBar(
-              tertiaryColor), // This is the custom header for this page
+          _buildTopBar(tertiaryColor),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Column(
@@ -151,19 +166,62 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 24),
                 _buildSectionTitle('Ongoing Quests', tertiaryColor),
                 const SizedBox(height: 12),
-                ...ongoingQuests.map((quest) => _buildQuestCard(
-                    quest, progressColor, tertiaryColor, backgroundColor)),
+                Builder(builder: (context) {
+                  if (_isLoading) {
+                    print(
+                        "[HomeScreen] Showing loading indicator for ongoing quests");
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (ongoingQuests.isEmpty) {
+                    print("[HomeScreen] Showing no ongoing quests message");
+                    return Center(
+                      child: Text(
+                        'No ongoing quests',
+                        style: TextStyle(color: tertiaryColor.withOpacity(0.6)),
+                      ),
+                    );
+                  } else {
+                    print(
+                        "[HomeScreen] Building ${ongoingQuests.length} ongoing quest cards");
+                    return Column(
+                      children: ongoingQuests
+                          .map((quest) => _buildQuestCard(quest, progressColor,
+                              tertiaryColor, backgroundColor))
+                          .toList(),
+                    );
+                  }
+                }),
                 const SizedBox(height: 24),
                 _buildSectionTitle('Saved Quests', tertiaryColor),
                 const SizedBox(height: 12),
-                ...savedQuests.map((quest) => _buildQuestCard(
-                    quest, progressColor, tertiaryColor, backgroundColor)),
+                Builder(builder: (context) {
+                  if (_isLoading) {
+                    print(
+                        "[HomeScreen] Showing loading indicator for saved quests");
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (savedQuests.isEmpty) {
+                    print("[HomeScreen] Showing no saved quests message");
+                    return Center(
+                      child: Text(
+                        'No saved quests',
+                        style: TextStyle(color: tertiaryColor.withOpacity(0.6)),
+                      ),
+                    );
+                  } else {
+                    print(
+                        "[HomeScreen] Building ${savedQuests.length} saved quest cards");
+                    return Column(
+                      children: savedQuests
+                          .map((quest) => _buildQuestCard(quest, progressColor,
+                              tertiaryColor, backgroundColor))
+                          .toList(),
+                    );
+                  }
+                }),
                 const SizedBox(height: 24),
                 _buildSectionTitle('Popular Locations', tertiaryColor),
                 const SizedBox(height: 16),
                 _buildPopularLocationsList(popularLocations, tertiaryColor),
-                const SizedBox(
-                    height: 30), // Space for bottom nav bar if added later
+                const SizedBox(height: 30),
               ],
             ),
           ),
@@ -227,6 +285,9 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
+          if (index == 0 && _selectedIndex != 0) {
+            _loadQuests();
+          }
           setState(() {
             _selectedIndex = index;
           });
@@ -451,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen> {
       Color cardBgColor) {
     return Card(
       elevation: 1.5,
-      color: Colors.white, // Slightly whiter than main background for contrast
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
       margin: const EdgeInsets.only(bottom: 12.0),
       child: InkWell(
@@ -464,14 +525,11 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(10.0),
                 decoration: BoxDecoration(
-                  color: cardBgColor.withOpacity(
-                      0.7), // Use lighter cardBg for icon background
+                  color: cardBgColor.withOpacity(0.7),
                   borderRadius: BorderRadius.circular(8.0),
                 ),
                 child: Image.asset(quest.iconAssetPath,
-                    height: 24,
-                    width: 24,
-                    color: progressColor), // Placeholder trophy icon
+                    height: 24, width: 24, color: progressColor),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -493,21 +551,48 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: LinearProgressIndicator(
-                            value: quest.progress,
-                            backgroundColor: progressColor.withOpacity(0.2),
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(progressColor),
-                            minHeight: 6,
-                            borderRadius: BorderRadius.circular(3),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    '${quest.completedLocations} of ${quest.totalLocations} locations',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: textColor.withOpacity(0.7),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '${quest.currentPoints} / ${quest.totalPoints} pts',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: progressColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Tooltip(
+                                message:
+                                    'Progress: ${(quest.progress * 100).toInt()}%\n'
+                                    'Completed: ${quest.completedLocations} locations\n'
+                                    'Points: ${quest.currentPoints} of ${quest.totalPoints}',
+                                child: LinearProgressIndicator(
+                                  value: quest.progress,
+                                  backgroundColor:
+                                      progressColor.withOpacity(0.2),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      progressColor),
+                                  minHeight: 6,
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Text('${quest.currentPoints} pts',
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: progressColor)),
                       ],
                     ),
                   ],
@@ -523,50 +608,56 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPopularLocationsList(
       List<PopularLocation> locations, Color textColor) {
     return SizedBox(
-      height: 170,
+      height: 200,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: locations.length,
         itemBuilder: (context, index) {
           final location = locations[index];
-          return SizedBox(
-            width: 140,
+          return Container(
+            width: 160,
+            margin: const EdgeInsets.only(right: 12.0),
             child: Card(
               elevation: 2,
               clipBehavior: Clip.antiAlias,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10.0)),
-              margin: const EdgeInsets.only(right: 12.0),
               child: InkWell(
                 onTap: () {/* TODO: Popular Location action */},
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.stretch, // Make image stretch
                   children: [
-                    Expanded(
-                      flex: 3, // Give more space to image
-                      child: Image.asset(
-                        location.imagePath,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                              color: Colors.grey[200],
-                              child: Icon(Icons.image_not_supported_rounded,
-                                  size: 40, color: Colors.grey[400]));
-                        },
+                    AspectRatio(
+                      aspectRatio: 4 / 3,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                        ),
+                        child: Image.asset(
+                          location.imagePath,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                                color: Colors.grey[200],
+                                child: Icon(Icons.image_not_supported_rounded,
+                                    size: 40, color: Colors.grey[400]));
+                          },
+                        ),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        location.name,
-                        style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: textColor),
-                        maxLines: 2,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8.0, vertical: 8.0),
+                        child: Text(
+                          location.name,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: textColor),
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                   ],
