@@ -63,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Dummy Data for the new UI - this remains
   final UserProfile _user = UserProfile(
-    username: 'MERLIN',
+    username: 'rikuekue',
     avatarUrl: 'assets/images/user_merlin_avatar.png',
     title: 'GRAND MASTER',
     currentXp: 20000,
