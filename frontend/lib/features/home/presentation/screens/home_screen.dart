@@ -151,17 +151,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 24),
                 _buildSectionTitle('Ongoing Quests', tertiaryColor),
                 const SizedBox(height: 12),
-                ...ongoingQuests
-                    .map((quest) => _buildQuestCard(
-                        quest, progressColor, tertiaryColor, backgroundColor))
-                    ,
+                ...ongoingQuests.map((quest) => _buildQuestCard(
+                    quest, progressColor, tertiaryColor, backgroundColor)),
                 const SizedBox(height: 24),
                 _buildSectionTitle('Saved Quests', tertiaryColor),
                 const SizedBox(height: 12),
-                ...savedQuests
-                    .map((quest) => _buildQuestCard(
-                        quest, progressColor, tertiaryColor, backgroundColor))
-                    ,
+                ...savedQuests.map((quest) => _buildQuestCard(
+                    quest, progressColor, tertiaryColor, backgroundColor)),
                 const SizedBox(height: 24),
                 _buildSectionTitle('Popular Locations', tertiaryColor),
                 const SizedBox(height: 16),
@@ -178,14 +174,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor =
-        Color(0xFFFBC02D); // Main Yellow/Gold from image
+    const Color primaryColor = Color(0xFFFBC02D); // Main Yellow/Gold from image
     const Color secondaryColor = Color(0xFFFFF9C4); // Lighter Yellow
     const Color tertiaryColor = Color(0xFF795548); // Brown for text/icons
     const Color backgroundColor =
         Color(0xFFFFFDE7); // Very light yellow background
-    const Color progressColor =
-        Color(0xFFFF8F00); // Orange for progress bars
+    const Color progressColor = Color(0xFFFF8F00); // Orange for progress bars
 
     final List<Widget> pages = [
       _buildHomePageView(
@@ -438,22 +432,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Center(
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/journey-completed');
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    textStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                  child: const Text('Go to Quest Completed'),
-                ),
-              ),
             ],
           ),
         ),
